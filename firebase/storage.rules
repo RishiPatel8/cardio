@@ -1,0 +1,20 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Check if user is authenticated and matches target path userId
+    function isOwner(userId) {
+      return request.auth != null && request.auth.uid == userId;
+    }
+
+    // Access matches user files directory path
+    match /users/{userId}/{allPaths=**} {
+      allow read, write: if isOwner(userId);
+    }
+
+    // Public access for AI models assets
+    match /models/{allPaths=**} {
+      allow read: if true;
+      allow write: if false;
+    }
+  }
+}

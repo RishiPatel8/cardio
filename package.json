@@ -1,0 +1,13 @@
+{
+  "name": "cardioguard-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "description": "CardioGuard AI - Wearable-Based Early Detection of Cardiovascular Disorders Using Artificial Intelligence",
+  "scripts": {
+    "dev": "npm run dev --prefix frontend",
+    "build": "npm run build --prefix frontend",
+    "lint": "npm run lint --prefix frontend",
+    "cap:sync": "npm run cap:sync --prefix frontend",
+    "cap:open": "npm run cap:open --prefix frontend"
+  }
+}

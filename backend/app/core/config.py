@@ -1,0 +1,60 @@
+from typing import Optional
+from pydantic import field_validator, ValidationInfo
+from pydantic_settings import BaseSettings
+
+class Settings(BaseSettings):
+    PROJECT_NAME: str = "CardioGuard AI"
+    API_V1_STR: str = "/api/v1"
+    SECRET_KEY: str = "development-level-secret-jwt-signing-key-for-cardioguard-wearable"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
+    REFRESH_TOKEN_EXPIRE_DAYS: int = 7
+
+    # PostgreSQL Database Settings
+    POSTGRES_SERVER: str = "localhost"
+    POSTGRES_USER: str = "postgres"
+    POSTGRES_PASSWORD: str = "postgres"
+    POSTGRES_DB: str = "cardioguard"
+    POSTGRES_PORT: int = 5432
+    SQLALCHEMY_DATABASE_URI: Optional[str] = None
+
+    @field_validator("SQLALCHEMY_DATABASE_URI", mode="before")
+    @classmethod
+    def assemble_db_connection(cls, v: Optional[str], values: ValidationInfo) -> any:
+        if isinstance(v, str) and v:
+            return v
+        data = values.data
+        user = data.get("POSTGRES_USER", "postgres")
+        pwd = data.get("POSTGRES_PASSWORD", "postgres")
+        server = data.get("POSTGRES_SERVER", "localhost")
+        port = data.get("POSTGRES_PORT", 5432)
+        db = data.get("POSTGRES_DB", "cardioguard")
+        return f"postgresql+asyncpg://{user}:{pwd}@{server}:{port}/{db}"
+
+    # Redis Cache Settings
+    REDIS_HOST: str = "localhost"
+    REDIS_PORT: int = 6379
+    REDIS_URI: Optional[str] = None
+
+    @field_validator("REDIS_URI", mode="before")
+    @classmethod
+    def assemble_redis_connection(cls, v: Optional[str], values: ValidationInfo) -> any:
+        if isinstance(v, str) and v:
+            return v
+        data = values.data
+        host = data.get("REDIS_HOST", "localhost")
+        port = data.get("REDIS_PORT", 6379)
+        return f"redis://{host}:{port}/0"
+
+    # Firebase Administration
+    FIREBASE_CREDENTIALS_PATH: Optional[str] = None
+    APP_CHECK_ENABLED: bool = True
+
+    # Health Connect Client configuration
+    HEALTH_CONNECT_CLIENT_ID: str = "com.cardioguard.app"
+
+    class Config:
+        env_file = ".env"
+        env_file_encoding = "utf-8"
+        case_sensitive = True
+
+settings = Settings()

@@ -1,0 +1,170 @@
+/* Premium Responsive 12-Column Layout System */
+.app-container {
+  min-height: 100vh;
+  display: flex;
+  background-color: var(--bg-main);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+}
+
+/* Collapsed Navigation Sidebar */
+.desktop-sidebar {
+  width: 80px;
+  background-color: #13151A;
+  border-right: 1px solid var(--border-glass);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 24px 8px;
+  gap: 32px;
+  transition: var(--transition-smooth);
+  z-index: 100;
+  overflow: hidden;
+}
+
+.desktop-sidebar:hover {
+  width: 240px;
+  align-items: stretch;
+  padding: 24px 16px;
+}
+
+.desktop-sidebar .nav-label {
+  display: none;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  white-space: nowrap;
+}
+
+.desktop-sidebar:hover .nav-label {
+  display: inline;
+  opacity: 1;
+}
+
+.desktop-sidebar .logo-text {
+  display: none;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.desktop-sidebar:hover .logo-text {
+  display: inline;
+  opacity: 1;
+}
+
+.desktop-sidebar .user-info {
+  display: none;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.desktop-sidebar:hover .user-info {
+  display: flex;
+  opacity: 1;
+}
+
+/* 12-Column Responsive CSS Grid */
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 24px;
+  padding: 24px;
+  width: 100%;
+}
+
+.grid-main-col {
+  grid-column: span 8 / span 8;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.grid-side-col {
+  grid-column: span 4 / span 4;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+/* Vitals Cards 8-Grid Section */
+.vitals-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 16px;
+}
+
+/* Apple Health Card Overrides */
+.health-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-lg);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  cursor: pointer;
+  transition: var(--transition-smooth);
+}
+
+.health-card:hover {
+  transform: translateY(-4px);
+  background: var(--bg-card-hover);
+  border-color: var(--border-glass-active);
+  box-shadow: 0 10px 25px rgba(255, 45, 85, 0.15);
+}
+
+.health-card.active {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 15px var(--color-primary-glow);
+}
+
+/* Mobile & Tablet Overrides */
+@media (max-width: 1024px) {
+  .desktop-sidebar {
+    display: none !important;
+  }
+  .dashboard-grid {
+    grid-template-columns: 1fr !important;
+    padding: 16px !important;
+  }
+  .grid-main-col {
+    grid-column: span 12 / span 12;
+  }
+  .grid-side-col {
+    grid-column: span 12 / span 12;
+  }
+  .mobile-bottom-bar {
+    display: flex !important;
+  }
+}
+
+/* Active Navigation Link Highlights */
+.desktop-sidebar a.btn-secondary {
+  text-decoration: none;
+  font-size: 0.85rem;
+  padding: 10px 14px;
+  justify-content: flex-start;
+  gap: 12px;
+}
+
+.desktop-sidebar a.btn-secondary.active {
+  background: rgba(255, 45, 85, 0.12) !important;
+  border-color: var(--color-primary) !important;
+  color: #FFFFFF !important;
+  box-shadow: 0 0 10px rgba(255, 45, 85, 0.2);
+}
+
+.mobile-bottom-bar a {
+  text-decoration: none;
+  background: none;
+  border: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  font-size: 0.6rem;
+  color: var(--text-secondary);
+}
+
+.mobile-bottom-bar a.active {
+  color: var(--color-primary) !important;
+}
