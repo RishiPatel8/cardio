@@ -58,7 +58,7 @@ async def get_daily_stats(
             pass
             
     avg_bpm, avg_sdrr, avg_rmssd = await get_aggregated_metrics(
-        current_user.id, db, days=1, default_bpm=74.5, default_sdrr=48.2, default_rmssd=34.6
+        current_user.id, db, days=1, default_bpm=70.0, default_sdrr=55.0, default_rmssd=45.0
     )
     
     result = {

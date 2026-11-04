@@ -1,3 +1,6 @@
+import app.database.base
+from dotenv import load_dotenv
+load_dotenv()
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from loguru import logger
@@ -12,6 +15,7 @@ from app.core.exceptions import (
     AuthError, NotFoundError,
     auth_error_handler, not_found_error_handler, validation_error_handler, db_error_handler, jwt_error_handler
 )
+import app.models
 from app.api.v1.router import api_router
 from app.utils.logging import setup_logging
 
@@ -26,10 +30,15 @@ app = FastAPI(
 # Configure structured logging configurations
 setup_logging()
 
+import os
+
+cors_origins_str = os.environ.get("CORS_ORIGINS", "http://localhost:5173,http://localhost")
+cors_origins = [origin.strip() for origin in cors_origins_str.split(",")] if cors_origins_str else ["*"]
+
 # CORS middleware configurations
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -43,14 +52,7 @@ app.add_middleware(RateLimitMiddleware, limit=120)
 @app.on_event("startup")
 async def startup_event():
     logger.info("Starting up CardioGuard AI Backend server...")
-    try:
-        from app.database.base import Base
-        from app.database.session import engine
-        async with engine.begin() as conn:
-            await conn.run_sync(Base.metadata.create_all)
-        logger.info("Database tables verified and updated successfully.")
-    except Exception as e:
-        logger.error(f"Failed to initialize database tables: {e}")
+    logger.info("Database schema is now managed entirely by Alembic.")
 
 @app.on_event("shutdown")
 async def shutdown_event():

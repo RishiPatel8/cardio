@@ -1,0 +1,15 @@
+{
+    "total_records": 48,
+    "total_patients": 47,
+    "total_segments": 109402,
+    "train_count": 77260,
+    "val_count": 15538,
+    "test_count": 16604,
+    "class_distribution": {
+        "0": 90552,
+        "1": 2780,
+        "2": 7233,
+        "3": 802,
+        "4": 8035
+    }
+}

@@ -1,0 +1,45 @@
+{
+    "dataset_name": "MIT-BIH Arrhythmia Database (Kaggle version)",
+    "dataset_version": "1.0",
+    "status": "VALID",
+    "files": {
+        "train": {
+            "shape": [
+                87554,
+                188
+            ],
+            "samples": 87554
+        },
+        "test": {
+            "shape": [
+                21892,
+                188
+            ],
+            "samples": 21892
+        }
+    },
+    "number_of_samples": 109446,
+    "signal_types": [
+        "ECG"
+    ],
+    "sampling_rate": 125,
+    "window_sizes": [
+        187
+    ],
+    "missing_values": 0,
+    "duplicate_records": 0,
+    "class_labels": {
+        "0": "NORMAL",
+        "1": "ABNORMAL_S",
+        "2": "ABNORMAL_V",
+        "3": "ABNORMAL_F",
+        "4": "ABNORMAL_Q"
+    },
+    "class_distribution": {
+        "0": 72471,
+        "4": 6431,
+        "2": 5788,
+        "1": 2223,
+        "3": 641
+    }
+}

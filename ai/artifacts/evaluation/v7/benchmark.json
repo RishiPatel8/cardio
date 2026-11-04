@@ -1,0 +1,58 @@
+[
+    {
+        "Model": "resnet_improved",
+        "Parameters": 510788,
+        "Accuracy": 0.6642402183803457,
+        "Macro Precision": 0.6307084676389004,
+        "Macro Recall": 0.6566832374305797,
+        "Macro F1": 0.6117581817170691,
+        "Weighted F1": 0.6405274745944568,
+        "ROC-AUC": 0.8442299120119292,
+        "Normal Recall": 0.8795180722891566,
+        "AFIB Recall": 0.9210526315789473,
+        "Block Recall": 0.2623762376237624,
+        "Other Recall": 0.5637860082304527
+    },
+    {
+        "Model": "cnn_lstm",
+        "Parameters": 48324,
+        "Accuracy": 0.5600545950864422,
+        "Macro Precision": 0.5170877767995243,
+        "Macro Recall": 0.48706596454148965,
+        "Macro F1": 0.44095751725323107,
+        "Weighted F1": 0.5243418657831047,
+        "ROC-AUC": 0.7303339048525308,
+        "Normal Recall": 0.895947426067908,
+        "AFIB Recall": 0.5328947368421053,
+        "Block Recall": 0.14356435643564355,
+        "Other Recall": 0.37585733882030176
+    },
+    {
+        "Model": "tcn",
+        "Parameters": 55364,
+        "Accuracy": 0.6615104640582348,
+        "Macro Precision": 0.6212316434542049,
+        "Macro Recall": 0.662481647114311,
+        "Macro F1": 0.6156798973993937,
+        "Weighted F1": 0.6431355184878246,
+        "ROC-AUC": 0.8412901139565753,
+        "Normal Recall": 0.8630887185104053,
+        "AFIB Recall": 0.9276315789473685,
+        "Block Recall": 0.3118811881188119,
+        "Other Recall": 0.5473251028806584
+    },
+    {
+        "Model": "transformer",
+        "Parameters": 151556,
+        "Accuracy": 0.651501364877161,
+        "Macro Precision": 0.6130638816572578,
+        "Macro Recall": 0.6305314703832345,
+        "Macro F1": 0.595270892301081,
+        "Weighted F1": 0.6328507010846972,
+        "ROC-AUC": 0.8210017864363034,
+        "Normal Recall": 0.8554216867469879,
+        "AFIB Recall": 0.8157894736842105,
+        "Block Recall": 0.2871287128712871,
+        "Other Recall": 0.5637860082304527
+    }
+]

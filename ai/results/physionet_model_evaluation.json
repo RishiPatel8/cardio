@@ -1,0 +1,21 @@
+{
+    "Random Forest": {
+        "Accuracy": 0.8647916164779571,
+        "Precision": 0.2912586144359811,
+        "Recall": 0.7340036563071298,
+        "Specificity": 0.8740167633784655,
+        "F1": 0.4170345364840301,
+        "ROC_AUC": 0.884331126819166
+    },
+    "Decision Tree": {
+        "Accuracy": 0.8189592869188147,
+        "Precision": 0.22732458642327438,
+        "Recall": 0.7285191956124314,
+        "Specificity": 0.8253384912959381,
+        "F1": 0.34652173913043477,
+        "ROC_AUC": 0.7769288434541848
+    },
+    "CNN+LSTM": "BLOCKED: Requires TensorFlow environment which is absent.",
+    "CNN": "BLOCKED: Requires TensorFlow.",
+    "LSTM": "BLOCKED: Requires TensorFlow."
+}

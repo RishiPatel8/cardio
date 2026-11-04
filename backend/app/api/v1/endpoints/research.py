@@ -1,10 +1,11 @@
 from fastapi import APIRouter
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from typing import List, Dict
 
 router = APIRouter()
 
 class MetricEntry(BaseModel):
+    model_config = ConfigDict(protected_namespaces=())
     model_name: str
     accuracy: float
     precision: float
@@ -22,6 +23,7 @@ class AblationStudyResult(BaseModel):
     gain: float
 
 class ResearchBenchmarkResponse(BaseModel):
+    model_config = ConfigDict(protected_namespaces=())
     model_benchmarks: List[MetricEntry]
     ablation_studies: List[AblationStudyResult]
     optuna_trials: List[Dict[str, float]]

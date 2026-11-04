@@ -86,7 +86,7 @@ def test_pytorch_neural_models_and_fusion():
     
     model.eval()
     with torch.no_grad():
-        embeddings = model(dummy_sequences)
+        embeddings = model.encode(dummy_sequences)
     # Output shape: [batch_size, d_model]
     assert embeddings.shape == (2, 64)
     
@@ -170,7 +170,7 @@ def test_explainable_ai_shap_physiological_sanity():
     
     # Generate explanations
     insights_anomaly = generate_natural_language_explanation(
-        contributions_anomaly, is_anomaly=True, confidence=88.5
+        contributions_anomaly, classification="AFIB", confidence=88.5
     )
     assert len(insights_anomaly) > 0
     # Confirm explanation matches anomalies

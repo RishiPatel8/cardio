@@ -31,16 +31,49 @@ async def get_current_user(
     db: AsyncSession = Depends(get_db)
 ) -> User:
     token = credentials.credentials
-    user_id = verify_token(token, "access")
-    if not user_id:
-        raise AuthError("Session access token is invalid or expired.", "TOKEN_INVALID")
+    print(f"[DEBUG] get_current_user called with token: {token[:20]}...")
     
     # Deferred import to avoid circular dependency
     from app.repositories.user import UserRepository
     user_repo = UserRepository(db)
-    user = await user_repo.get_by_id(user_id)
+    
+    # Try native backend token first
+    user_id = verify_token(token, "access")
+    user = None
+    
+    if user_id:
+        print(f"[DEBUG] Native token verified. user_id: {user_id}")
+        user = await user_repo.get_by_id(user_id)
+    else:
+        # Fallback: Check if it's a Firebase ID token (frontend sends these directly)
+        from app.core.security import verify_firebase_token
+        firebase_payload = verify_firebase_token(token)
+        print(f"[DEBUG] Firebase token payload: {firebase_payload}")
+        if firebase_payload:
+            email = firebase_payload.get("email")
+            if email:
+                user = await user_repo.get_by_email(email)
+                if user:
+                    print(f"[DEBUG] Found user by email: {email}")
+                # Auto-register if missing (since Firebase validated them)
+                if not user:
+                    print(f"[DEBUG] User not found by email. Auto-registering: {email}")
+                    user = User(
+                        email=email,
+                        hashed_password="",
+                        firebase_uid=firebase_payload.get("uid")
+                    )
+                    user = await user_repo.create(user)
+                    await db.commit()
+            else:
+                print("[DEBUG] No email in Firebase payload")
+        else:
+            print("[DEBUG] verify_firebase_token returned None")
+
     if not user:
-        raise AuthError("Account profile associated with token does not exist.", "USER_NOT_FOUND")
+        print("[DEBUG] Failed to authenticate user. Raising AuthError.")
+        raise AuthError("Session access token is invalid, expired, or user not found.", "TOKEN_INVALID")
+        
     return user
 
 async def verify_firebase_app_check(

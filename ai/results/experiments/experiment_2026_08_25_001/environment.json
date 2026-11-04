@@ -1,0 +1,14 @@
+{
+    "experiment_id": "experiment_2026_08_25_001",
+    "timestamp": "2026-08-25T23:17:33.481083",
+    "os": "Windows-11-10.0.26200-SP0",
+    "processor": "Intel64 Family 6 Model 183 Stepping 1, GenuineIntel",
+    "python_version": "3.14.7 (tags/v3.14.7:823f032, Aug  5 2026, 10:51:32) [MSC v.1944 64 bit (AMD64)]",
+    "packages": {
+        "tensorflow": "Unknown",
+        "scikit-learn": "1.9.0",
+        "shap": "0.52.0",
+        "pandas": "3.0.5",
+        "numpy": "2.5.2"
+    }
+}

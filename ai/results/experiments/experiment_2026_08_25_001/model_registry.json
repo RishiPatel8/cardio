@@ -1,0 +1,23 @@
+{
+    "active_model": "cnn_lstm",
+    "version": "1.0.0",
+    "artifact_path": "d:/cardiogaurd/ai/artifacts/models/cnn_lstm/cnn_lstm.h5",
+    "scaler_path": "d:/cardiogaurd/ai/artifacts/models/scaler.pkl",
+    "training_timestamp": "2026-08-25T15:10:56Z",
+    "dataset": {
+        "source": "shayanfazeli/heartbeat",
+        "name": "MIT-BIH Arrhythmia Database",
+        "scope": "5% subset"
+    },
+    "preprocessing": {
+        "version": "1.0",
+        "features": 186
+    },
+    "metrics": {
+        "Accuracy": 0.9926873857404022,
+        "Precision": 0.6111111111111112,
+        "Recall": 0.9166666666666666,
+        "F1": 0.7333333333333333,
+        "AUC": 0.9982285890326555
+    }
+}

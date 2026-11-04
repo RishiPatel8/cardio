@@ -18,7 +18,7 @@ try:
         firebase_admin.initialize_app(cred)
         logger.info("Firebase Admin SDK successfully initialized.")
     else:
-        logger.warning("Firebase credentials JSON path not found. Running with mock token verification for offline mode.")
+        logger.warning("OFFLINE DEMO MODE ACTIVE: Firebase credentials JSON path not found. Running with mock token verification for offline development/demo mode.")
 except Exception as e:
     logger.error(f"Failed to initialize Firebase Admin SDK: {e}")
 
@@ -65,11 +65,22 @@ def verify_firebase_token(token: str) -> Optional[dict]:
             return decoded_token
         else:
             # Fallback mock for testing/development when JSON is missing
-            logger.warning("Mocking Firebase verification offline.")
+            logger.warning("OFFLINE DEMO MODE ACTIVE: Mocking Firebase token verification offline.")
             if token.startswith("mock_firebase_"):
                 email = f"{token.replace('mock_firebase_', '')}@example.com"
                 return {"uid": token, "email": email, "email_verified": True}
-            return None
+            
+            # Since frontend might send real Firebase tokens but backend is offline,
+            # decode it without verifying the signature for local development.
+            try:
+                unverified_payload = jwt.get_unverified_claims(token)
+                # Firebase tokens have 'user_id' instead of 'uid' in the payload sometimes,
+                # but let's map it safely.
+                unverified_payload["uid"] = unverified_payload.get("user_id", unverified_payload.get("sub", "mock_user"))
+                return unverified_payload
+            except Exception as e:
+                logger.error(f"Failed to decode unverified token: {e}")
+                return None
     except Exception as e:
         logger.error(f"Firebase token verification failed: {e}")
         return None
@@ -91,7 +102,7 @@ def verify_app_check_token(token: str) -> bool:
                 return token.startswith("mock_app_check_token_") or token == "mock_debug_token"
         else:
             # Fallback mock for testing/development
-            logger.warning("Mocking App Check verification offline.")
+            logger.warning("OFFLINE DEMO MODE ACTIVE: Mocking App Check verification offline.")
             return token.startswith("mock_app_check_token_") or token == "mock_debug_token"
     except Exception as e:
         logger.error(f"App Check verification failed: {e}")

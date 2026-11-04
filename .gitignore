@@ -43,3 +43,45 @@ env/
 backend/*.json
 *.json.local
 
+# Databases
+*.db
+*.sqlite
+*.sqlite3
+
+# Secrets & credentials
+secrets/
+backend/secrets/
+*.pem
+*.key
+
+# Gradle & Android build artifacts
+.gradle/
+**/.gradle/
+build/
+**/build/
+*.apk
+*.aab
+
+# Large datasets & raw data caches (>100MB / temporary downloads)
+ai/datasets/*.csv
+ai/datasets/processed/
+ai/data/
+scratch/
+ai/scratch/
+cardiogaurd_review_5000_ptbxl.csv
+audit_results.json
+
+# Large arrays
+*.npy
+*.npz
+!ai/artifacts/**/shap_background.npy
+!ai/artifacts/**/X_train_background.npy
+
+# Backend temporary test artifacts
+backend/*.dat
+backend/*.hea
+backend/*.atr
+backend/temp_*.csv
+backend/short.csv
+backend/tmp_mitdb/
+backend/app/uploads/

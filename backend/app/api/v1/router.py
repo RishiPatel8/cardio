@@ -1,3 +1,4 @@
+from fastapi import APIRouter
 from app.api.v1.endpoints import (
     auth, users, wearables, prediction, analytics, reports, 
     notifications, settings, system, hydration, nutrition, 
@@ -5,6 +6,7 @@ from app.api.v1.endpoints import (
     devices, privacy, explain, models, datasets, monitoring,
     research, jobs
 )
+from app.api.v1.predictions import physionet
 
 api_router = APIRouter()
 
@@ -12,6 +14,7 @@ api_router.include_router(auth.router, prefix="/auth", tags=["Authentication & S
 api_router.include_router(users.router, prefix="/users", tags=["Users Profiles"])
 api_router.include_router(wearables.router, prefix="/wearables", tags=["Wearables Vitals Logs"])
 api_router.include_router(prediction.router, prefix="/prediction", tags=["AI Prediction Models"])
+api_router.include_router(physionet.router, prefix="/predictions/physionet", tags=["PhysioNet Predictions"])
 api_router.include_router(analytics.router, prefix="/analytics", tags=["Arrhythmia Analytics"])
 api_router.include_router(reports.router, prefix="/reports", tags=["Clinical PDF Exports"])
 api_router.include_router(notifications.router, prefix="/notifications", tags=["System Warnings Alerts"])

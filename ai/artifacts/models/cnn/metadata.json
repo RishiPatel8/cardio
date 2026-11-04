@@ -1,0 +1,19 @@
+{
+    "model_version": "cnn-v1.0",
+    "experiment_id": "experiment_2026_08_29_155447",
+    "dataset": "MIT-BIH Arrhythmia Database",
+    "dataset_source": "Kaggle shayanfazeli/heartbeat",
+    "classification_task": "binary_arrhythmia",
+    "input_shape": [
+        187,
+        1
+    ],
+    "preprocessing_version": "v1.0",
+    "metrics": {
+        "Accuracy": 0.9771149278275169,
+        "Precision": 0.9127364438839849,
+        "Recall": 0.9589295177530471,
+        "F1": 0.935262953870009,
+        "AUC": 0.9919519161701132
+    }
+}

@@ -4,17 +4,30 @@ import uuid
 from typing import AsyncGenerator
 from httpx import AsyncClient, ASGITransport
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
-from app.main import app
+from app.main import app as fastapi_app
 from app.core.dependencies import get_current_user, get_db, get_redis
 import app.core.dependencies
 from app.models.user import User
 from app.database.base import Base
 
-DB_FILE = os.path.abspath(os.path.join(os.path.dirname(__file__), "../test.db"))
-SQLALCHEMY_DATABASE_URL = f"sqlite+aiosqlite:///{DB_FILE.replace('\\', '/')}"
+# DB_FILE = os.path.abspath(os.path.join(os.path.dirname(__file__), "../test.db"))
+SQLALCHEMY_DATABASE_URL = "postgresql+asyncpg://cardioguard_admin:production_secure_db_pass_1298@localhost:5432/cardioguard_db_test"
+
+@pytest.fixture(scope="session")
+def event_loop():
+    import asyncio
+    loop = asyncio.new_event_loop()
+    yield loop
+    loop.close()
+
+from sqlalchemy import pool
 
 # Setup test database engine and session maker
-engine = create_async_engine(SQLALCHEMY_DATABASE_URL, echo=False)
+engine = create_async_engine(
+    SQLALCHEMY_DATABASE_URL, 
+    echo=False,
+    poolclass=pool.NullPool
+)
 async_session_maker = async_sessionmaker(
     bind=engine,
     class_=AsyncSession,
@@ -92,29 +105,19 @@ async def override_get_redis():
     return mock_redis_client
 
 # Apply global overrides
-app.dependency_overrides[get_db] = override_get_db
-app.dependency_overrides[get_redis] = override_get_redis
+fastapi_app.dependency_overrides[get_db] = override_get_db
+fastapi_app.dependency_overrides[get_redis] = override_get_redis
 
 @pytest.fixture(scope="session", autouse=True)
 async def initialize_test_database():
-    # Remove old DB file if it remains
-    if os.path.exists(DB_FILE):
-        try:
-            os.remove(DB_FILE)
-        except Exception:
-            pass
-            
+    # Drop all tables and recreate them in the test database
     async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.drop_all)
         await conn.run_sync(Base.metadata.create_all)
         
     yield
     
     await engine.dispose()
-    if os.path.exists(DB_FILE):
-        try:
-            os.remove(DB_FILE)
-        except Exception:
-            pass
 
 @pytest.fixture(autouse=True)
 async def seed_user():
@@ -133,10 +136,12 @@ async def seed_user():
 
 @pytest.fixture
 def mock_user() -> User:
+    from datetime import datetime
     return User(
         id=uuid.UUID("4c02283e-a89e-4ff6-8c46-9c46e3ea86bf"),
         email="test_user@example.com",
-        role="User"
+        role="User",
+        created_at=datetime.utcnow()
     )
 
 @pytest.fixture
@@ -144,14 +149,14 @@ async def client(mock_user: User) -> AsyncGenerator[AsyncClient, None]:
     async def override_current_user():
         return mock_user
 
-    app.dependency_overrides[get_current_user] = override_current_user
+    fastapi_app.dependency_overrides[get_current_user] = override_current_user
     
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+    async with AsyncClient(transport=ASGITransport(app=fastapi_app), base_url="http://test") as ac:
         yield ac
         
     # Keep global overrides intact, only clean temporary route overrides
-    if get_current_user in app.dependency_overrides:
-        del app.dependency_overrides[get_current_user]
+    if get_current_user in fastapi_app.dependency_overrides:
+        del fastapi_app.dependency_overrides[get_current_user]
 
 @pytest.fixture
 async def db_session() -> AsyncGenerator[AsyncSession, None]:

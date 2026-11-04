@@ -21,8 +21,8 @@ target_metadata = Base.metadata
 # Override database URI dynamically from app settings
 # Convert postgresql+asyncpg:// to postgresql:// for migration runs
 db_url = settings.SQLALCHEMY_DATABASE_URI
-if db_url and db_url.startswith("postgresql+asyncpg"):
-    db_url = db_url.replace("postgresql+asyncpg", "postgresql")
+if db_url:
+    pass
 config.set_main_option("sqlalchemy.url", db_url)
 
 def run_migrations_offline() -> None:

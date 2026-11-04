@@ -1,0 +1,80 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: cardioguard_db
+    environment:
+      POSTGRES_DB: cardioguard
+      POSTGRES_USER: cardioguard_admin
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-cardioguard_dev_secret_db_pass}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cardioguard_admin -d cardioguard"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: always
+
+  redis:
+    image: redis:7-alpine
+    container_name: cardioguard_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: always
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: cardioguard_backend
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://cardioguard_admin:${POSTGRES_PASSWORD:-cardioguard_dev_secret_db_pass}@db:5432/cardioguard
+      - REDIS_URL=redis://redis:6379/0
+      - APP_CHECK_ENABLED=true
+      - JWT_SECRET=${JWT_SECRET:-cardioguard_dev_secret_jwt_key_9901}
+      - FIREBASE_CREDENTIALS_PATH=/app/firebase_credentials.json
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app
+      - uploads_volume:/app/uploads
+    restart: always
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: cardioguard_frontend
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      - VITE_API_URL=https://api.cardioguard.ai/api/v1
+      - VITE_APP_CHECK_ENABLED=true
+    depends_on:
+      - backend
+    restart: always
+
+volumes:
+  pgdata:
+    driver: local
+  redisdata:
+    driver: local
+  uploads_volume:
+    driver: local

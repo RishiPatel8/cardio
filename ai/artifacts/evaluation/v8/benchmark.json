@@ -1,0 +1,30 @@
+[
+    {
+        "Model": "tabular_mlp",
+        "Parameters": 2788,
+        "Accuracy": 0.45632393084622386,
+        "Macro Precision": 0.42406012048271485,
+        "Macro Recall": 0.5276800855878427,
+        "Macro F1": 0.4318254402799758,
+        "Weighted F1": 0.4553920849938973,
+        "ROC-AUC": 0.7260452631497198,
+        "Normal Recall": 0.47535596933187296,
+        "AFIB Recall": 0.9671052631578947,
+        "Block Recall": 0.2004950495049505,
+        "Other Recall": 0.46776406035665297
+    },
+    {
+        "Model": "tcn_multimodal",
+        "Parameters": 61364,
+        "Accuracy": 0.675614194722475,
+        "Macro Precision": 0.6498992213273482,
+        "Macro Recall": 0.6749049815197432,
+        "Macro F1": 0.6449533651723574,
+        "Weighted F1": 0.6579768690840119,
+        "ROC-AUC": 0.8538579047521468,
+        "Normal Recall": 0.8696604600219058,
+        "AFIB Recall": 0.9276315789473685,
+        "Block Recall": 0.3316831683168317,
+        "Other Recall": 0.5706447187928669
+    }
+]

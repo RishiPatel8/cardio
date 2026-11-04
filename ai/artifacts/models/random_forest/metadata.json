@@ -1,0 +1,19 @@
+{
+    "model_version": "random_forest-v1.0",
+    "experiment_id": "experiment_2026_08_25_150335",
+    "dataset": "MIT-BIH Arrhythmia Database",
+    "dataset_source": "Kaggle shayanfazeli/heartbeat",
+    "classification_task": "binary_arrhythmia",
+    "input_shape": [
+        187,
+        1
+    ],
+    "preprocessing_version": "v1.0",
+    "metrics": {
+        "Accuracy": 0.9963436928702011,
+        "Precision": 0.8333333333333334,
+        "Recall": 0.8333333333333334,
+        "F1": 0.8333333333333334,
+        "AUC": 0.9989987677141097
+    }
+}

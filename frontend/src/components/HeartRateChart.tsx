@@ -42,76 +42,97 @@ export const HeartRateChart: React.FC<HeartRateChartProps> = React.memo(({ activ
           <h3 style={{ fontSize: "1.15rem", fontWeight: "800", color: "#FFFFFF" }}>
             {config.label} Trend
           </h3>
-          <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>Interactive Apple Health Telemetry</span>
+          <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
+            {activeMetric === "heartRate" ? "Derived from uploaded ECG" : "Interactive Apple Health Telemetry"}
+          </span>
         </div>
 
         <div style={{ display: "flex", gap: "4px", backgroundColor: "rgba(255, 255, 255, 0.04)", padding: "4px", borderRadius: "10px" }}>
-          {(["1d", "7d", "30d", "90d", "1y"] as const).map((p) => (
-            <button
-              key={p}
-              onClick={() => setPeriod(p)}
-              style={{
+          {activeMetric === "heartRate" ? (
+            <span style={{
                 padding: "6px 12px",
                 fontSize: "0.7rem",
                 borderRadius: "8px",
-                border: "none",
-                cursor: "pointer",
-                backgroundColor: period === p ? "var(--color-primary)" : "transparent",
-                color: period === p ? "#FFFFFF" : "var(--text-secondary)",
-                fontWeight: "600",
-                transition: "all 0.15s ease"
-              }}
-            >
-              {p.toUpperCase()}
-            </button>
-          ))}
+                backgroundColor: "var(--color-primary)",
+                color: "#FFFFFF",
+                fontWeight: "600"
+            }}>
+                Analyzed Window (10s)
+            </span>
+          ) : (
+            (["1d", "7d", "30d", "90d", "1y"] as const).map((p) => (
+              <button
+                key={p}
+                onClick={() => setPeriod(p)}
+                style={{
+                  padding: "6px 12px",
+                  fontSize: "0.7rem",
+                  borderRadius: "8px",
+                  border: "none",
+                  cursor: "pointer",
+                  backgroundColor: period === p ? "var(--color-primary)" : "transparent",
+                  color: period === p ? "#FFFFFF" : "var(--text-secondary)",
+                  fontWeight: "600",
+                  transition: "all 0.15s ease"
+                }}
+              >
+                {p.toUpperCase()}
+              </button>
+            ))
+          )}
         </div>
       </div>
 
       <div style={{ width: "100%", height: 260 }}>
-        <ResponsiveContainer>
-          <AreaChart data={activePoints} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-            <defs>
-              <linearGradient id={config.gradientId} x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor={config.color} stopOpacity={0.4}/>
-                <stop offset="95%" stopColor={config.color} stopOpacity={0.0}/>
-              </linearGradient>
-            </defs>
-            <XAxis
-              dataKey="time"
-              stroke="var(--text-muted)"
-              fontSize={11}
-              tickLine={false}
-              axisLine={false}
-            />
-            <YAxis
-              domain={config.domain}
-              stroke="var(--text-muted)"
-              fontSize={11}
-              tickLine={false}
-              axisLine={false}
-            />
-            <Tooltip
-              contentStyle={{
-                backgroundColor: "#1B1D24",
-                border: "1px solid var(--border-glass)",
-                borderRadius: "12px",
-                color: "#FFFFFF",
-                fontSize: "0.8rem",
-              }}
-              formatter={(value: any) => [`${value} ${config.unit}`, config.label]}
-            />
-            <Area
-              type="monotone"
-              dataKey="value"
-              stroke={config.color}
-              strokeWidth={3}
-              fillOpacity={1}
-              fill={`url(#${config.gradientId})`}
-              animationDuration={500}
-            />
-          </AreaChart>
-        </ResponsiveContainer>
+        {activeMetric === "heartRate" && activePoints.length === 0 ? (
+          <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: "8px" }}>
+            <span style={{ fontSize: "0.9rem", color: "var(--text-secondary)" }}>No sufficient ECG data for heart-rate trend</span>
+          </div>
+        ) : (
+          <ResponsiveContainer>
+            <AreaChart data={activePoints} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+              <defs>
+                <linearGradient id={config.gradientId} x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor={config.color} stopOpacity={0.4}/>
+                  <stop offset="95%" stopColor={config.color} stopOpacity={0.0}/>
+                </linearGradient>
+              </defs>
+              <XAxis
+                dataKey="time"
+                stroke="var(--text-muted)"
+                fontSize={11}
+                tickLine={false}
+                axisLine={false}
+              />
+              <YAxis
+                domain={config.domain}
+                stroke="var(--text-muted)"
+                fontSize={11}
+                tickLine={false}
+                axisLine={false}
+              />
+              <Tooltip
+                contentStyle={{
+                  backgroundColor: "#1B1D24",
+                  border: "1px solid var(--border-glass)",
+                  borderRadius: "12px",
+                  color: "#FFFFFF",
+                  fontSize: "0.8rem",
+                }}
+                formatter={(value: any) => [`${value} ${config.unit}`, config.label]}
+              />
+              <Area
+                type="monotone"
+                dataKey="value"
+                stroke={config.color}
+                strokeWidth={3}
+                fillOpacity={1}
+                fill={`url(#${config.gradientId})`}
+                animationDuration={500}
+              />
+            </AreaChart>
+          </ResponsiveContainer>
+        )}
       </div>
     </div>
   );

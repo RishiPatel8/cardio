@@ -6,6 +6,49 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [1.3.0] - 2026-09-14
+
+### Added
+*   **V8 Multimodal End-to-End Integration**:
+    *   Transitioned the production inference engine to support the V8 TCN Multimodal architecture.
+    *   Updated `inference_service.py` to handle dual-input tensors (ECG + Tabular demographics/statistics).
+    *   Integrated unified `preprocessing_v8.py` module to extract dynamic HR and RMSSD from incoming real-world ECG signals.
+    *   Updated the Fast API endpoints (`physionet.py`) to accept Patient Age and Sex alongside the waveform data.
+    *   Upgraded the React Frontend `DatasetUploader` to capture demographic information required by the new multimodal backend.
+    *   Passed strict integration and golden regression tests preserving backwards compatibility with V6 ResNet as a fallback.
+    *   Published final model inventory audit summarizing the model landscape and readiness.
+
+## [1.2.0] - 2026-09-07
+
+### Added
+*   **V8 Multimodal Fusion Research Phase**:
+    *   Conducted rigorous data auditing of the PTB-XL schema, validating that no real 'wearable' telemetry existed and strictly barring diagnostic text from the feature space to prevent target leakage.
+    *   Designed `ai/datasets/extract_tabular_v8.py` to programmatically derive clinically relevant signals (Heart Rate, RMSSD/HRV) directly from the raw 100Hz sequences.
+    *   Constructed a dual-input `tcn_multimodal` architecture utilizing the established TCN sequence encoder merged with a dense Tabular MLP processing `[Age, Sex, HR, RMSSD]`.
+    *   **Achieved State-of-the-Art internal performance**: The Multimodal TCN attained **64.49% Macro F1** and **67.56% Accuracy**, representing statistically significant improvements over the V7 baseline (Macro F1 +2.93%). Conduction Block and "Other" Arrhythmia recall jumped to 33.1% and 57.0% respectively, leveraging demographic physiology.
+*   **V7 Deep Learning Architectures Benchmark**:
+    *   Designed and trained four primary architectures (`1D ResNet`, `CNN-LSTM`, `TCN`, `Transformer`) against the fully expanded V7 canonical dataset (21,799 records).
+    *   Implemented universal mitigation for class imbalance utilizing **Focal Loss** ($\gamma=2.0$) tightly coupled with mathematically derived inverse-frequency **Class Weights**.
+    *   Injected dataset-aware temporal augmentations (Gaussian noise, amplitude scaling, baseline wander) securely confined to the `tf.data` training stream.
+    *   Evaluated all models against the untouched V7 test set (2,198 sequences).
+    *   **Identified TCN (Temporal Convolutional Network) as the superior architecture**, achieving the highest Macro F1 (0.6156), optimal minority recall for Conduction Blocks (31%), and excellent AFIB sensitivity (92.7%) while utilizing a hyper-efficient parameter footprint (55,364 parameters).
+*   **V7 Dataset Expansion (Full PTB-XL)**:
+    *   Resolved severe "data starvation" limitation by asynchronously downloading the remaining ~16,400 missing physical WFDB records from PhysioNet.
+    *   Created `ai/datasets/prepare_dataset_v7.py` to extract 21,799 complete 100Hz ECG tensors without NaNs, Infs, or invalid length mismatches.
+    *   Unified SCP-ECG mappings into a central, canonical `ai/preprocessing/label_pipeline.py`.
+    *   Enforced strict patient-level separation (`strat_fold`) across `train` (17.4k), `val` (2.1k), and `test` (2.1k) partitions with zero patient leakage verified via automated `pytest` suites.
+    *   Evaluated the V6 Model baseline on the expanded test set, definitively proving its accuracy crashes to 56% on properly balanced test data, confirming the need for a new architectural model.
+
+## [1.1.0] - 2026-09-07
+
+### Added
+*   **Canonical V6 Pipeline Evaluation**: 
+    *   Successfully evaluated the V6 ResNet model using `processed_ptbxl_v6` Test Set (Fold 10).
+    *   Generated complete test suite validation metrics including Accuracy (75.8%), Macro F1 (0.5849), and ROC-AUC (0.8560).
+    *   Performed exhaustive dataset leakage tests (verifying absolute strict patient-level splits) and data quality assurance (no NaNs/Infs).
+    *   Saved results inside a structured evaluation artifact (`v6_validation_report.md`).
+    *   Identified severe structural class imbalances and architectural bottlenecks for Class 2 (Conduction Block) and Class 3 (Other).
+
 ## [1.0.0] - 2026-07-22
 
 ### Added

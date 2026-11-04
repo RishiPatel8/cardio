@@ -1,6 +1,7 @@
 import uuid
-from sqlalchemy import Column, Float, String, DateTime, ForeignKey, ARRAY
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy import Column, Float, String, DateTime, ForeignKey
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy import UUID
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.database.base_class import Base
@@ -15,7 +16,8 @@ class Prediction(Base):
     classification = Column(String(50), nullable=False) # 'Normal', 'AF Risk'
     confidence_score = Column(Float, nullable=False)
     model_version = Column(String(50), nullable=False)
-    explainable_insights = Column(ARRAY(String), nullable=False)
+    probability_vector = Column(JSONB, nullable=True)
+    explainable_insights = Column(JSONB, nullable=False)
     
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 

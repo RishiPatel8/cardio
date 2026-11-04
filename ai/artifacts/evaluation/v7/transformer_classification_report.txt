@@ -1,0 +1,17 @@
+              precision    recall  f1-score   support
+
+      Normal       0.69      0.86      0.76       913
+        AFIB       0.50      0.82      0.62       152
+       Block       0.60      0.29      0.39       404
+       Other       0.66      0.56      0.61       729
+
+    accuracy                           0.65      2198
+   macro avg       0.61      0.63      0.60      2198
+weighted avg       0.65      0.65      0.63      2198
+
+
+Confusion Matrix:
+[[781  10  14 108]
+ [  7 124  14   7]
+ [146  48 116  94]
+ [204  65  49 411]]

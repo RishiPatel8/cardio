@@ -86,74 +86,21 @@ def compute_feature_contributions(
 
 def generate_natural_language_explanation(
     contributions: List[Dict[str, Any]],
-    is_anomaly: bool,
+    classification: str,
     confidence: float
 ) -> List[str]:
-    """Generates detailed, research-grade diagnostic explanations, clearly separating medical risk and wellness insights."""
+    """Generates heuristic physiological insights, clearly separating them from model interpretation."""
     insights = []
     
-    # Sort contributions by absolute impact
-    sorted_contribs = sorted(contributions, key=lambda c: abs(c["contribution"]), reverse=True)
+    insights.append(f"MODEL PREDICTION: {classification} — {confidence:.1f}% model probability.")
     
-    # Separate clinical risk factors from wellness insights
-    medical_risks = []
-    wellness_insights = []
-    
-    # Top drivers driving high risk or showing stable health
-    for c in sorted_contribs:
-        name_clean = c["feature"].upper().replace("_", " ")
+    for c in contributions:
+        name = c["feature"].upper()
         val = c["value"]
-        base = c["baseline"]
-        
-        # Wellness insights (steps, sleep, activity, alcohol, hydration)
-        if c["feature"] in ["steps", "sleep_minutes", "activity_level_numeric", "calories"]:
-            if val < base:
-                wellness_insights.append(
-                    f"WELLNESS OPTIMIZATION: Daily {name_clean} is currently below baseline ({val:.1f} vs. target {base:.1f}). Increasing this metric supports recovery."
-                )
-            else:
-                wellness_insights.append(
-                    f"WELLNESS OPTIMIZATION: Excellent physical engagement! Daily {name_clean} is exceeding goal targets ({val:.1f} vs. {base:.1f})."
-                )
-        # Medical risks (HRV, BP, SpO2, clinical flags)
-        elif c["feature"] in ["sdnn", "rmssd", "spo2", "systolic_bp", "diastolic_bp", "hypertension", "diabetes", "previous_heart_disease", "stroke_history", "smoking"]:
-            if is_anomaly:
-                if c["feature"] in ["sdnn", "rmssd"] and val < base:
-                    medical_risks.append(
-                        f"CLINICAL MEDICAL RISK: Low autonomic regulation (HRV metric {name_clean} at {val:.1f} ms) correlates with cardiovascular stress patterns."
-                    )
-                elif c["feature"] in ["systolic_bp", "diastolic_bp"] and val > base:
-                    medical_risks.append(
-                        f"CLINICAL MEDICAL RISK: Elevated blood pressure detected ({val:.0f} mmHg) exceeding optimal parameters (~{base:.0f} mmHg)."
-                    )
-                elif c["feature"] == "spo2" and val < base:
-                    medical_risks.append(
-                        f"CLINICAL MEDICAL RISK: Low oxygen saturation ({val:.1f}%) suggests potential arterial hypoxia risk factors under cardiac loads."
-                    )
-                elif val > 0 and c["feature"] in ["hypertension", "diabetes", "previous_heart_disease", "stroke_history"]:
-                    medical_risks.append(
-                        f"CLINICAL MEDICAL RISK: Active patient history of {name_clean} represents a significant clinical cofactor for arrhythmia onset."
-                    )
-            else:
-                if c["feature"] in ["sdnn", "rmssd"] and val >= base:
-                    medical_risks.append(
-                        f"CLINICAL STATUS: Healthy heart rate variability (HRV metric {name_clean} stable at {val:.1f} ms) indicating optimal sinus tone."
-                    )
-                elif c["feature"] in ["systolic_bp", "diastolic_bp"] and val <= base:
-                    medical_risks.append(
-                        f"CLINICAL STATUS: Normal arterial pressure logged ({val:.0f}/{base:.0f} mmHg limits)."
-                    )
-                    
-    # Combine lists, presenting medical risk estimates first
-    if is_anomaly:
-        insights.append(f"DIAGNOSTIC STATUS: Atrial Fibrillation (AF) Risk identified with {confidence:.1f}% confidence.")
-        insights.extend(medical_risks[:3])
-        insights.extend(wellness_insights[:2])
-        insights.append("MEDICAL DIRECTION: ECG lead recordings show high-risk QRS peak variations. Please consult a qualified cardiologist.")
-    else:
-        insights.append(f"DIAGNOSTIC STATUS: Normal sinus rhythm patterns verified with {confidence:.1f}% confidence.")
-        insights.extend(medical_risks[:2])
-        insights.extend(wellness_insights[:2])
-        insights.append("WELLNESS ADVICE: Autonomic parameters indicate a stable recovery profile. Maintain current training and rest schedules.")
+        if name in ["SDNN", "RMSSD"]:
+            insights.append(f"SUPPLEMENTARY INSIGHT: {name} is {val:.1f} ms relative to the configured reference range.")
+            
+    insights.append("These physiological insights are supplementary and are not explanations of the neural network's internal decision.")
+    insights.append("This output is an AI research prediction and is not a clinical diagnosis. Please consult a qualified healthcare professional for clinical interpretation.")
         
     return insights

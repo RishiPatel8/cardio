@@ -1,53 +1,62 @@
-import torch
-import torch.nn as nn
+import logging
 import numpy as np
 from typing import Dict, Any
-from ai.foundation_models.transformer import TimeSeriesTransformer
 
-class MultimodalFusionModel(nn.Module):
-    def __init__(
-        self,
-        transformer_model: TimeSeriesTransformer,
-        tabular_dim: int,
-        fused_dim: int = 128,
-        num_classes: int = 2,
-        dropout: float = 0.2
-    ):
-        super(MultimodalFusionModel, self).__init__()
-        self.transformer = transformer_model
-        
-        # Dimension of projected transformer latents
-        self.latent_dim = transformer_model.d_model
-        self.tabular_dim = tabular_dim
-        
-        # Dense fusion layer combining sequence latents and tabular vectors
-        self.fusion_network = nn.Sequential(
-            nn.Linear(self.latent_dim + tabular_dim, fused_dim),
-            nn.BatchNorm1d(fused_dim),
-            nn.ReLU(),
-            nn.Dropout(dropout),
-            nn.Linear(fused_dim, fused_dim // 2),
-            nn.ReLU(),
-            nn.Dropout(dropout)
-        )
-        
-        # Final classification logits
-        self.classifier = nn.Linear(fused_dim // 2, num_classes)
-
-    def forward(self, timeseries_input: torch.Tensor, tabular_input: torch.Tensor) -> torch.Tensor:
-        # timeseries_input shape: [batch_size, seq_len, input_dim]
-        # tabular_input shape: [batch_size, tabular_dim]
-        
-        # 1. Extract latents from foundation ECG transformer
-        ecg_latents = self.transformer.encode(timeseries_input) # [batch_size, latent_dim]
-        
-        # 2. Concatenate latents with tabular features
-        fused_vector = torch.cat([ecg_latents, tabular_input], dim=1) # [batch_size, latent_dim + tabular_dim]
-        
-        # 3. Project to fused classification representation
-        fused_features = self.fusion_network(fused_vector)
-        logits = self.classifier(fused_features)
-        return logits
+try:
+    import torch
+    import torch.nn as nn
+    from ai.foundation_models.transformer import TimeSeriesTransformer
+    
+    class MultimodalFusionModel(nn.Module):
+        def __init__(
+            self,
+            transformer_model: TimeSeriesTransformer,
+            tabular_dim: int,
+            fused_dim: int = 128,
+            num_classes: int = 2,
+            dropout: float = 0.2
+        ):
+            super(MultimodalFusionModel, self).__init__()
+            self.transformer = transformer_model
+            
+            # Dimension of projected transformer latents
+            self.latent_dim = transformer_model.d_model
+            self.tabular_dim = tabular_dim
+            
+            # Dense fusion layer combining sequence latents and tabular vectors
+            self.fusion_network = nn.Sequential(
+                nn.Linear(self.latent_dim + tabular_dim, fused_dim),
+                nn.BatchNorm1d(fused_dim),
+                nn.ReLU(),
+                nn.Dropout(dropout),
+                nn.Linear(fused_dim, fused_dim // 2),
+                nn.ReLU(),
+                nn.Dropout(dropout)
+            )
+            
+            # Final classification logits
+            self.classifier = nn.Linear(fused_dim // 2, num_classes)
+    
+        def forward(self, timeseries_input: torch.Tensor, tabular_input: torch.Tensor) -> torch.Tensor:
+            # timeseries_input shape: [batch_size, seq_len, input_dim]
+            # tabular_input shape: [batch_size, tabular_dim]
+            
+            # 1. Extract latents from foundation ECG transformer
+            ecg_latents = self.transformer.encode(timeseries_input) # [batch_size, latent_dim]
+            
+            # 2. Concatenate latents with tabular features
+            fused_vector = torch.cat([ecg_latents, tabular_input], dim=1) # [batch_size, latent_dim + tabular_dim]
+            
+            # 3. Project to fused classification representation
+            fused_features = self.fusion_network(fused_vector)
+            logits = self.classifier(fused_features)
+            return logits
+except (ModuleNotFoundError, OSError) as e:
+    logging.warning(f"PyTorch is unavailable ({e}). MultimodalFusionModel is disabled.")
+    
+    class MultimodalFusionModel:
+        def __init__(self, *args, **kwargs):
+            raise NotImplementedError("PyTorch is not available.")
 
 def preprocess_tabular_features(
     hrv_features: Dict[str, float], 

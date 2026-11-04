@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from typing import List, Dict
 from app.core.dependencies import get_current_user, get_db
 from app.models.user import User
@@ -14,6 +14,7 @@ class FeatureContribution(BaseModel):
     description: str
 
 class ExplainabilityResponse(BaseModel):
+    model_config = ConfigDict(protected_namespaces=())
     active_risk_score: float = Field(..., description="Ensemble risk score value (0-100)")
     confidence: float = Field(..., description="Classifier predictive confidence (0-100)")
     model_version: str = Field(default="v2.1.4-ensemble")

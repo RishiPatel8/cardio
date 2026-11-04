@@ -6,13 +6,16 @@ interface DetectionRunnerProps {
   onStartAnalysis: () => void;
   onAnalysisComplete: () => void;
   isAnalyzing: boolean;
+  availableModels: any[];
+  selectedModelId: string;
+  onModelSelect: (id: string) => void;
 }
 
 const stages = [
   "Parsing ECG sequence arrays...",
   "Computing HRV parameters (RMSSD, SDRR)...",
   "Running neural network classifier model...",
-  "Cross-referencing AF Risk patterns...",
+  "Cross-referencing ECG anomaly patterns...",
   "Finalizing confidence metrics...",
 ];
 
@@ -21,6 +24,9 @@ export const DetectionRunner: React.FC<DetectionRunnerProps> = ({
   onStartAnalysis,
   onAnalysisComplete,
   isAnalyzing,
+  availableModels,
+  selectedModelId,
+  onModelSelect,
 }) => {
   const [analysisStage, setAnalysisStage] = useState<number>(0);
   const [progress, setProgress] = useState<number>(0);
@@ -35,7 +41,7 @@ export const DetectionRunner: React.FC<DetectionRunnerProps> = ({
     // Proactively animate analysis stages
     let currentProgress = 0;
     const interval = setInterval(() => {
-      currentProgress += 2;
+      currentProgress += 4;
       if (currentProgress > 100) {
         currentProgress = 100;
       }
@@ -52,12 +58,12 @@ export const DetectionRunner: React.FC<DetectionRunnerProps> = ({
         clearInterval(interval);
         setTimeout(() => {
           onAnalysisComplete();
-        }, 600);
+        }, 200);
       }
-    }, 80);
+    }, 20);
 
     return () => clearInterval(interval);
-  }, [isAnalyzing, onAnalysisComplete]);
+  }, [isAnalyzing]);
 
   return (
     <div className={`glass-panel ${isAnalyzing ? "pulse-glow-violet" : ""}`} style={{ position: "relative", overflow: "hidden" }}>
@@ -114,6 +120,37 @@ export const DetectionRunner: React.FC<DetectionRunnerProps> = ({
                 No telemetry loaded. Connect Google Fit or upload a PhysioNet CSV file above to enable detection.
               </div>
             )}
+            
+            {/* Model Selection Dropdown */}
+            <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+              <label style={{ fontSize: "0.75rem", color: "var(--text-secondary)" }}>Selected Engine</label>
+              <select 
+                value={selectedModelId}
+                onChange={(e) => onModelSelect(e.target.value)}
+                disabled={!hasData || isAnalyzing}
+                style={{
+                  width: "100%",
+                  padding: "10px",
+                  borderRadius: "8px",
+                  backgroundColor: "rgba(255, 255, 255, 0.05)",
+                  border: "1px solid var(--border-glass)",
+                  color: "#FFFFFF",
+                  fontSize: "0.9rem",
+                  outline: "none",
+                  cursor: "pointer"
+                }}
+              >
+                <option value="default" style={{ color: "#000" }}>Current Model (v6-canonical)</option>
+                <option value="compare" style={{ color: "#000", fontWeight: "bold" }}>⚡ Compare All Enabled Models</option>
+                <optgroup label="Individual Verified Models" style={{ color: "#000" }}>
+                  {availableModels.map(m => (
+                    <option key={m.id} value={m.id} style={{ color: "#000" }}>
+                      {m.architecture} ({m.version})
+                    </option>
+                  ))}
+                </optgroup>
+              </select>
+            </div>
 
             <button
               onClick={onStartAnalysis}

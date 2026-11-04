@@ -1,0 +1,50 @@
+{
+    "keras_model": {
+        "accuracy": 0.8311712040928193,
+        "precision": 0.5919811320754716,
+        "recall": 0.06650768415474298,
+        "f1": 0.11958075273939972,
+        "auc": 0.5068562707301888
+    },
+    "tflite_fp32": {
+        "size_kb": 275.3203125,
+        "benchmarks": {
+            "status": "PASS",
+            "accuracy": 0.8311712040928193,
+            "precision": 0.5919811320754716,
+            "recall": 0.06650768415474298,
+            "f1": 0.11958075273939972,
+            "auc": 0.5068563219167428,
+            "mean_latency_ms": 0.14319789980072528,
+            "median_latency_ms": 0.14409999130293727,
+            "p95_latency_ms": 0.16723999287933108,
+            "p99_latency_ms": 0.26717199652921403,
+            "prediction_agreement_percent": 100.0
+        }
+    },
+    "tflite_quantized": {
+        "size_kb": 272.5546875,
+        "benchmarks": {
+            "status": "PASS",
+            "accuracy": 0.8312168828795907,
+            "precision": 0.5903890160183066,
+            "recall": 0.06836248012718601,
+            "f1": 0.12253621467584896,
+            "auc": 0.5390314000552114,
+            "mean_latency_ms": 0.0732598002650775,
+            "median_latency_ms": 0.07169999298639596,
+            "p95_latency_ms": 0.08641501481179147,
+            "p99_latency_ms": 0.13742899871431288,
+            "prediction_agreement_percent": 99.93148181984286
+        }
+    },
+    "representative_dataset": {
+        "size": 200,
+        "source": "mitbih_test.csv"
+    },
+    "runtime": {
+        "interpreter": "Windows Python tf.lite.Interpreter (CPU)",
+        "flex_ops_required": false
+    },
+    "limitations": []
+}

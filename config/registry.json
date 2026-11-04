@@ -1,0 +1,9 @@
+{
+    "active_model": "resnet",
+    "artifact_path": "D:\\cardiogaurd\\ai\\artifacts\\models\\v5_full\\best_model.h5",
+    "preprocessing_artifact": "D:\\cardiogaurd\\ai\\artifacts\\models\\v5_full\\scaler_v5.pkl",
+    "shap_background_path": "D:\\cardiogaurd\\ai\\artifacts\\models\\v5_full\\shap_background.npy",
+    "version": "v5-full-run",
+    "temperature": 0.6749536991119385,
+    "afib_threshold": 0.2
+}

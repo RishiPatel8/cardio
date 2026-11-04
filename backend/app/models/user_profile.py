@@ -1,6 +1,7 @@
 import uuid
-from sqlalchemy import Column, Float, Integer, String, Boolean, DateTime, ForeignKey, JSON
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy import Column, Float, Integer, String, Boolean, DateTime, ForeignKey
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy import UUID
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.database.base_class import Base
@@ -27,8 +28,8 @@ class UserProfile(Base):
     previous_heart_disease = Column(Boolean, default=False, nullable=False)
     stroke_history = Column(Boolean, default=False, nullable=False)
     family_history = Column(Boolean, default=False, nullable=False)
-    current_medications = Column(JSON, default=list, nullable=False) # List of dicts: {"name": str, "dosage": str, "frequency": str}
-    allergies = Column(JSON, default=list, nullable=False) # List of strings
+    current_medications = Column(JSONB, default=list, nullable=False) # List of dicts: {"name": str, "dosage": str, "frequency": str}
+    allergies = Column(JSONB, default=list, nullable=False) # List of strings
     
     # Lifestyle
     smoking = Column(Boolean, default=False, nullable=False)

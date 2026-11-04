@@ -28,30 +28,20 @@ interface DatasetStats {
   rmssd: number;
 }
 
-interface RecordRow {
-  index: number;
-  timeSec: number;
-  rrIntervalMs: number;
-  bpm: number;
-}
-
-interface DatasetPayload {
+export interface DatasetPayload {
   fileName: string;
   recordsCount: number;
-  rows: RecordRow[];
   stats: DatasetStats;
+  rows?: any[];
+  rawSignal?: number[];
+  file?: File | null;
+  files?: File[];
+  age?: number;
+  sex?: number;
 }
 
 const METRIC_DATA_STREAMS: Record<string, DataPoint[]> = {
-  heartRate: [
-    { time: "08:00 AM", value: 71 },
-    { time: "10:00 AM", value: 73 },
-    { time: "12:00 PM", value: 70 },
-    { time: "02:00 PM", value: 78 },
-    { time: "04:00 PM", value: 68 },
-    { time: "06:00 PM", value: 69 },
-    { time: "08:00 PM", value: 72 },
-  ],
+  heartRate: [],
   hrv: [
     { time: "08:00 AM", value: 42 },
     { time: "10:00 AM", value: 48 },
@@ -123,28 +113,53 @@ function App() {
   const [zoomLevel, setZoomLevel] = useState(1);
   const [isFiltered, setIsFiltered] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [playOffset, setPlayOffset] = useState(0);
+
+  // Model selection state
+  const [availableModels, setAvailableModels] = useState<any[]>([]);
+  const [selectedModelId, setSelectedModelId] = useState<string>("default");
+  
+  useEffect(() => {
+    const fetchModels = async () => {
+      try {
+        const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:8000/api/v1";
+        const res = await fetch(`${apiUrl}/models`);
+        if (res.ok) {
+          const models = await res.json();
+          setAvailableModels(models);
+        }
+      } catch (err) {
+        console.error("Failed to fetch models", err);
+      }
+    };
+    fetchModels();
+  }, []);
+
 
   // AI predictions state
   const [analysisResult, setAnalysisResult] = useState<{
-    resultType: "normal" | "af";
+    resultType: string;
     confidence: number;
     stats: DatasetStats;
     modelVersion: string;
     explainableInsights: string[];
+    explanationValues?: any[];
     inferenceTimeMs: number;
+    probabilityVector?: number[];
     fileName?: string;
+    highestRiskSegment?: number[];
+    signalQuality?: string;
+    comparisons?: any[];
   } | null>(null);
 
   // Daily dynamic stats loaded from backend or Google Fit
   const [dailyStats, setDailyStats] = useState({
-    avgBpm: 72,
-    sdrr: 45,
-    rmssd: 32,
-    steps: 6200,
-    calories: 320,
-    sleep: 7.2,
-    stress: 2,
+    avgBpm: 70,
+    sdrr: 55,
+    rmssd: 45,
+    steps: 8500,
+    calories: 450,
+    sleep: 7.8,
+    stress: 1,
   });
 
   // Dynamic metric chart streams
@@ -207,15 +222,6 @@ function App() {
     const interval = setInterval(updateTime, 60000);
     return () => clearInterval(interval);
   }, []);
-
-  // ECG waveform animation loop
-  useEffect(() => {
-    if (!isPlaying) return;
-    const interval = setInterval(() => {
-      setPlayOffset((prev) => (prev + 2) % 300);
-    }, 40);
-    return () => clearInterval(interval);
-  }, [isPlaying]);
 
   useEffect(() => {
     const unsubscribe = subscribeToAuthChanges((firebaseUser) => {
@@ -350,13 +356,44 @@ function App() {
   const handleStartAnalysis = () => {
     setIsAnalyzing(true);
   };
-
   const handleResetAnalysis = () => {
     setAnalysisResult(null);
   };
 
+  // Utility to calculate real BPM from the ECG waveform
+  const extractHeartRateFromECG = (ecgData: number[], sampleRate: number = 100) => {
+    if (!ecgData || ecgData.length === 0) return [];
+
+    let max = -Infinity;
+    for (let val of ecgData) if (val > max) max = val;
+
+    const threshold = max * 0.6;
+    const minDistance = Math.floor(sampleRate * 0.4); 
+
+    const peaks: number[] = [];
+    for (let i = 1; i < ecgData.length - 1; i++) {
+        if (ecgData[i] > threshold && ecgData[i] > ecgData[i - 1] && ecgData[i] > ecgData[i + 1]) {
+            if (peaks.length === 0 || (i - peaks[peaks.length - 1]) >= minDistance) {
+                peaks.push(i);
+            }
+        }
+    }
+
+    const bpmData: DataPoint[] = [];
+    for (let i = 1; i < peaks.length; i++) {
+        const rrSamples = peaks[i] - peaks[i - 1];
+        const rrSeconds = rrSamples / sampleRate;
+        const bpm = Math.round(60 / rrSeconds);
+        const timeSec = (peaks[i] / sampleRate).toFixed(2);
+        bpmData.push({ time: `${timeSec}s`, value: bpm });
+    }
+
+    return bpmData;
+  };
+
   const handleAnalysisComplete = async () => {
-    setIsAnalyzing(false);
+    if (!uploadedDataset && dataOrigin === "csv") return;
+    setIsAnalyzing(true);
 
     let activeStats: DatasetStats = {
       avgBpm: dailyStats.avgBpm,
@@ -364,14 +401,16 @@ function App() {
       rmssd: dailyStats.rmssd,
     };
 
-    let resultType: "normal" | "af" = "normal";
-    let confidence = 94;
-    let modelVersion = "ensemble-random_forest-v2.0";
-    let explainableInsights: string[] = [
-      `Average heart rate registered at ${activeStats.avgBpm} bpm.`,
-      `SDRR metric of ${activeStats.sdrr}ms indicates stable heart rhythms.`
-    ];
-    let inferenceTimeMs = 45;
+    let resultType: string = "Normal Sinus Rhythm";
+    let confidence = 0;
+    let modelVersion = "Unknown";
+    let explainableInsights: string[] = [];
+    let explanationValues: any[] = [];
+    let inferenceTimeMs = 0;
+    let probabilityVector: number[] = [];
+    let highestRiskSegment: number[] | undefined = undefined;
+    let signalQuality: string | undefined = undefined;
+    let comparisons: any[] | undefined = undefined;
 
     if (dataOrigin === "csv" && uploadedDataset) {
       activeStats = uploadedDataset.stats;
@@ -392,60 +431,161 @@ function App() {
         headers["X-Firebase-App-Check"] = appCheckToken;
       }
 
-      const response = await fetch(`${apiUrl}/prediction`, {
-        method: "POST",
-        headers,
-        body: JSON.stringify({
+      let response: Response;
+      if (dataOrigin === "csv" && (uploadedDataset?.file || (uploadedDataset?.files && uploadedDataset.files.length > 0))) {
+        // Real ECG upload using multipart/form-data
+        const formData = new FormData();
+        
+        if (uploadedDataset.files && uploadedDataset.files.length > 0) {
+            uploadedDataset.files.forEach((f: File) => formData.append("files", f));
+        } else if (uploadedDataset.file) {
+            formData.append("files", uploadedDataset.file);
+        }
+        
+        formData.append("age", uploadedDataset.age !== undefined ? uploadedDataset.age.toString() : "30");
+        formData.append("sex", uploadedDataset.sex !== undefined ? uploadedDataset.sex.toString() : "0");
+
+        // Do not set Content-Type for FormData, browser sets it with boundary
+        const formDataHeaders: Record<string, string> = { ...headers };
+        delete formDataHeaders["Content-Type"];
+
+        if (selectedModelId === "compare") {
+            const enabledIds = availableModels.map((m: any) => m.id).join(",");
+            formData.append("model_ids", enabledIds);
+            response = await fetch(`${apiUrl}/predictions/physionet/compare`, {
+              method: "POST",
+              headers: formDataHeaders,
+              body: formData,
+            });
+        } else {
+            if (selectedModelId !== "default") {
+              formData.append("model_id", selectedModelId);
+            }
+            response = await fetch(`${apiUrl}/predictions/physionet`, {
+              method: "POST",
+              headers: formDataHeaders,
+              body: formData,
+            });
+        }
+      } else {
+        // Fallback for mock/manual entry
+        const payload: any = {
           avg_bpm: activeStats.avgBpm,
           sdrr_ms: activeStats.sdrr,
           rmssd_ms: activeStats.rmssd,
-        }),
-      });
+          age: uploadedDataset?.age !== undefined ? uploadedDataset.age : 30,
+          sex: uploadedDataset?.sex !== undefined ? uploadedDataset.sex : 0
+        };
+        
+        if (selectedModelId === "compare") {
+            const enabledIds = availableModels.map((m: any) => m.id).join(",");
+            payload.model_ids = enabledIds;
+        } else if (selectedModelId !== "default") {
+            payload.model_id = selectedModelId;
+        }
+
+        if (dataOrigin === "csv" && uploadedDataset?.rawSignal) {
+          payload.raw_ecg = uploadedDataset.rawSignal;
+          payload.fs = 100.0;
+        }
+
+        const endpoint = selectedModelId === "compare" ? "/predictions/compare" : "/prediction";
+        response = await fetch(`${apiUrl}${endpoint}`, {
+          method: "POST",
+          headers,
+          body: JSON.stringify(payload),
+        });
+      }
 
       if (response.ok) {
         const data = await response.json();
-        resultType = data.classification === "AF Risk" ? "af" : "normal";
-        confidence = data.confidence_score;
-        modelVersion = data.model_version || modelVersion;
-        explainableInsights = data.explainable_insights || explainableInsights;
-        inferenceTimeMs = data.inference_time_ms || 32;
+        
+        comparisons = undefined;
+        
+        if (data.comparisons) {
+            comparisons = data.comparisons;
+            // set main view to first successful model or generic overview
+            resultType = "Multi-Model Comparison";
+            confidence = 100;
+            modelVersion = "Ensemble Mode";
+        } else if (data.prediction && data.prediction.label) {
+            resultType = data.prediction.label || "Unknown";
+            confidence = data.prediction.confidence ?? 0;
+            modelVersion = data.model_version || "Unknown";
+            explainableInsights = data.explanation?.values?.map((v: any) => {
+               if (typeof v === 'string') return v;
+               let parsedTime = v.feature;
+               if (v.feature && v.feature.startsWith('time_')) {
+                 const sampleIdx = parseInt(v.feature.split('_')[1], 10);
+                 if (!isNaN(sampleIdx)) {
+                   parsedTime = `Time ${(sampleIdx / 100).toFixed(2)}s`;
+                 }
+               }
+               return `${parsedTime} impact: ${(v.contribution > 0 ? '+' : '')}${(v.contribution * 100).toFixed(1)}%`;
+            }) || explainableInsights;
+            inferenceTimeMs = data.inference_time_ms || 32;
+            const rawVector = data.class_probabilities ? 
+              [data.class_probabilities.Normal, data.class_probabilities.AFIB, data.class_probabilities["Conduction Block"], data.class_probabilities["Other Arrhythmia"]] : [];
+            // API returns percentages (0-100), we need decimals (0-1)
+            probabilityVector = rawVector.map(v => Math.max(0, Math.min(1, (v || 0) / 100.0)));
+            highestRiskSegment = data.highest_risk_segment || [];
+            signalQuality = data.signal_quality || "UNKNOWN";
+            explanationValues = data.explanation?.values || [];
+            if (data.hr_bpm) activeStats.avgBpm = Math.round(data.hr_bpm);
+            if (data.rmssd_ms) activeStats.rmssd = Math.round(data.rmssd_ms);
+        } else {
+            resultType = data.classification || "Unknown";
+            confidence = data.confidence_score ?? 0;
+            modelVersion = data.model_version || modelVersion;
+            explainableInsights = data.explainable_insights || explainableInsights;
+            inferenceTimeMs = data.inference_time_ms || 32;
+            const rawLegacy = data.probability_vector || [];
+            probabilityVector = rawLegacy.map((v: number) => Math.max(0, Math.min(1, v)));
+            highestRiskSegment = data.highest_risk_segment;
+            signalQuality = data.signal_quality;
+            explanationValues = data.explanation?.values || [];
+        }
         await fetchDashboardStats(user);
       } else {
-        throw new Error("Backend offline");
+        let errorDetail = "Backend offline";
+        try {
+            const errData = await response.json();
+            errorDetail = errData.detail || errorDetail;
+        } catch (jsonErr) {
+            // unable to parse JSON error
+        }
+        throw new Error(errorDetail);
       }
-    } catch (e) {
-      logAppError("handleAnalysisComplete", e);
-      if (activeStats.sdrr > 90 || activeStats.rmssd > 80) {
-        resultType = "af";
-        explainableInsights = [
-          `Average heart rate registered at ${activeStats.avgBpm} bpm.`,
-          `Abnormal SDRR score of ${activeStats.sdrr}ms (exceeding 90ms) indicating high heart rate variability.`,
-          "RMSSD exceeds optimal bounds. Potential atrial fibrillations flagged."
-        ];
-      } else {
-        resultType = "normal";
-        explainableInsights = [
-          `Average heart rate registered at ${activeStats.avgBpm} bpm.`,
-          `Stable SDRR metric of ${activeStats.sdrr}ms matching sinus rhythm patterns.`
-        ];
-      }
-      confidence = 92;
-      modelVersion = "edge-tflite-fallback-v1.0";
-      inferenceTimeMs = 18;
+    } catch (e: any) {
+      logAppError("Detection API", e);
+      resultType = "normal";
+      confidence = 0;
+      explainableInsights = [e.message || "Failed to communicate with prediction service."];
+      explanationValues = [];
+    }
+    if (highestRiskSegment && highestRiskSegment.length > 0) {
+      const derivedBpm = extractHeartRateFromECG(highestRiskSegment, 100);
+      setMetricData((prev) => ({ ...prev, heartRate: derivedBpm }));
     }
 
-    setAnalysisResult({
-      resultType,
-      confidence,
-      stats: activeStats,
-      modelVersion,
+    setIsAnalyzing(false);
+    setAnalysisResult({ 
+      resultType, 
+      confidence, 
+      stats: activeStats, 
+      modelVersion, 
       explainableInsights,
+      explanationValues,
       inferenceTimeMs,
-      fileName: dataOrigin === "csv" ? uploadedDataset?.fileName : undefined,
+      probabilityVector,
+      fileName: uploadedDataset?.fileName,
+      highestRiskSegment,
+      signalQuality,
+      comparisons
     });
   };
 
-  const isAF = analysisResult?.resultType === "af";
+  const isAF = analysisResult?.resultType === "AFIB" || analysisResult?.resultType === "Conduction Block" || analysisResult?.resultType === "Other Arrhythmia";
 
   if (authLoading) {
     return (
@@ -545,12 +685,13 @@ function App() {
     setIsFiltered,
     isFullscreen,
     setIsFullscreen,
-    playOffset,
-    setPlayOffset,
     dailyStats,
     setDailyStats,
     metricData,
     isAF,
+    availableModels,
+    selectedModelId,
+    setSelectedModelId,
     handleGoogleFitConnect,
     handleGoogleFitDisconnect,
     handleDatasetLoaded,

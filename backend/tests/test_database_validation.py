@@ -79,16 +79,18 @@ async def test_cascade_delete_integrity(db_session: AsyncSession):
         source="google_fit",
         avg_bpm=78.5,
         sdrr_ms=45.0,
-        rmssd_ms=30.0
+        rmssd_ms=30.0,
+        timeseries_data=[]
     )
     await wearable_repo.create(wearable)
     
     prediction = Prediction(
         id=uuid.uuid4(),
         user_id=user_id,
-        confidence=85.0,
-        is_anomaly=True,
-        prob_risk=0.85
+        classification="Normal",
+        confidence_score=85.0,
+        model_version="v6",
+        explainable_insights=[]
     )
     await prediction_repo.create(prediction)
     

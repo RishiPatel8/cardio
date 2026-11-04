@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, Any
 from pydantic import field_validator, ValidationInfo
 from pydantic_settings import BaseSettings
 
@@ -19,16 +19,17 @@ class Settings(BaseSettings):
 
     @field_validator("SQLALCHEMY_DATABASE_URI", mode="before")
     @classmethod
-    def assemble_db_connection(cls, v: Optional[str], values: ValidationInfo) -> any:
+    def assemble_db_connection(cls, v: Optional[str], values: ValidationInfo) -> Any:
         if isinstance(v, str) and v:
             return v
-        data = values.data
-        user = data.get("POSTGRES_USER", "postgres")
-        pwd = data.get("POSTGRES_PASSWORD", "postgres")
-        server = data.get("POSTGRES_SERVER", "localhost")
-        port = data.get("POSTGRES_PORT", 5432)
-        db = data.get("POSTGRES_DB", "cardioguard")
-        return f"postgresql+asyncpg://{user}:{pwd}@{server}:{port}/{db}"
+            
+        server = values.data.get("POSTGRES_SERVER")
+        user = values.data.get("POSTGRES_USER")
+        password = values.data.get("POSTGRES_PASSWORD")
+        db = values.data.get("POSTGRES_DB")
+        port = values.data.get("POSTGRES_PORT")
+        
+        return f"postgresql+asyncpg://{user}:{password}@{server}:{port}/{db}"
 
     # Redis Cache Settings
     REDIS_HOST: str = "localhost"
@@ -37,7 +38,7 @@ class Settings(BaseSettings):
 
     @field_validator("REDIS_URI", mode="before")
     @classmethod
-    def assemble_redis_connection(cls, v: Optional[str], values: ValidationInfo) -> any:
+    def assemble_redis_connection(cls, v: Optional[str], values: ValidationInfo) -> Any:
         if isinstance(v, str) and v:
             return v
         data = values.data
@@ -51,10 +52,12 @@ class Settings(BaseSettings):
 
     # Health Connect Client configuration
     HEALTH_CONNECT_CLIENT_ID: str = "com.cardioguard.app"
+    PREDICTION_MODE: str = "demo"
 
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"
         case_sensitive = True
+        extra = "ignore"
 
 settings = Settings()

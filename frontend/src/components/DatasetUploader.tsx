@@ -6,6 +6,7 @@ interface RecordRow {
   timeSec: number;
   rrIntervalMs: number;
   bpm: number;
+  rawVal?: number;
 }
 
 interface DatasetUploaderProps {
@@ -18,6 +19,11 @@ interface DatasetUploaderProps {
       sdrr: number;
       rmssd: number;
     };
+    rawSignal?: number[];
+    file?: File | null;
+    files?: File[];
+    age?: number;
+    sex?: number;
   }) => void;
   onClear: () => void;
   currentDatasetName: string | null;
@@ -31,6 +37,8 @@ export const DatasetUploader: React.FC<DatasetUploaderProps> = ({
   const [dragActive, setDragActive] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [age, setAge] = useState<number>(30);
+  const [sex, setSex] = useState<number>(0);
 
   // Generates simulated raw 100Hz ECG continuous signal and feeds it to parser
   const loadDemoDataset = (type: "normal" | "af") => {
@@ -112,10 +120,10 @@ export const DatasetUploader: React.FC<DatasetUploaderProps> = ({
       csvLines.push(`${timeSec.toFixed(2)},${signalVal.toFixed(4)}`);
     }
     
-    parseCSVText(csvLines.join("\n"), fileName);
+    parseCSVText(csvLines.join("\n"), fileName, null);
   };
 
-  const calculateAndSendStats = (fileName: string, rows: RecordRow[]) => {
+  const calculateAndSendStats = (fileName: string, rows: RecordRow[], file: File | null = null) => {
     const bpms = rows.map((r) => r.bpm);
     const rrs = rows.map((r) => r.rrIntervalMs);
     
@@ -144,6 +152,10 @@ export const DatasetUploader: React.FC<DatasetUploaderProps> = ({
         sdrr,
         rmssd,
       },
+      rawSignal: rows.map(r => r.rawVal).filter(v => v !== undefined) as number[],
+      file: file,
+      age,
+      sex,
     });
   };
 
@@ -157,7 +169,7 @@ export const DatasetUploader: React.FC<DatasetUploaderProps> = ({
     }
   };
 
-  const parseCSVText = (text: string, name: string) => {
+  const parseCSVText = (text: string, name: string, file: File | null = null) => {
     try {
       const lines = text.split(/\r?\n/).filter((line) => line.trim() !== "");
       if (lines.length < 2) {
@@ -166,6 +178,51 @@ export const DatasetUploader: React.FC<DatasetUploaderProps> = ({
       }
 
       const headers = lines[0].toLowerCase().split(",");
+      
+      let isHeaderlessNumeric = false;
+      if (headers.length > 0 && !isNaN(parseFloat(headers[0]))) {
+        isHeaderlessNumeric = true;
+      }
+
+      if (isHeaderlessNumeric) {
+        const rawSignal: number[] = [];
+        for (let i = 0; i < lines.length; i++) {
+          const cols = lines[i].split(",");
+          for (const c of cols) {
+            const val = parseFloat(c.trim());
+            if (!isNaN(val)) rawSignal.push(val);
+          }
+        }
+
+        if (rawSignal.length < 100) {
+          setErrorMsg("Insufficient raw ECG points parsed (needs at least 100).");
+          return;
+        }
+
+        const parsedRows: RecordRow[] = [];
+        for (let i = 0; i < 15; i++) {
+          parsedRows.push({
+            index: i,
+            timeSec: i * 0.8,
+            rrIntervalMs: 800,
+            bpm: 75,
+            rawVal: rawSignal[i],
+          });
+        }
+
+        onDatasetLoaded({
+          fileName: name,
+          recordsCount: rawSignal.length,
+          rows: parsedRows,
+          stats: { avgBpm: 75, sdrr: 45, rmssd: 32 },
+          rawSignal: rawSignal,
+          file: file,
+          age,
+          sex,
+        });
+        return;
+      }
+
       const timeIdx = headers.findIndex((h) => h.includes("time") || h.includes("sec"));
       const rrIdx = headers.findIndex((h) => h.includes("rr") || h.includes("interval") || h.includes("ms"));
       const bpmIdx = headers.findIndex((h) => h.includes("bpm") || h.includes("rate") || h.includes("hr"));
@@ -234,6 +291,7 @@ export const DatasetUploader: React.FC<DatasetUploaderProps> = ({
             timeSec: parseFloat(peakTimes[j].toFixed(3)),
             rrIntervalMs,
             bpm,
+            rawVal: rawPoints[j].val,
           });
         }
       } else {
@@ -269,9 +327,71 @@ export const DatasetUploader: React.FC<DatasetUploaderProps> = ({
         return;
       }
 
-      calculateAndSendStats(name, parsedRows);
+      // We also need to map the raw signal if we're sending raw signal for ALL points.
+      // But parsedRows is RR intervals. To send raw signal to the backend, we should bypass parsedRows for rawSignal,
+      // or just send rawPoints directly.
+      if (signalIdx !== -1) {
+          const rawSignal = [];
+          for (let i = 1; i < lines.length; i++) {
+              const cols = lines[i].split(",").map((c) => c.trim());
+              if (cols.length > signalIdx && cols[signalIdx]) {
+                  const ecgVal = parseFloat(cols[signalIdx]);
+                  if (!isNaN(ecgVal)) {
+                      rawSignal.push(ecgVal);
+                  }
+              }
+          }
+          onDatasetLoaded({
+            fileName: name,
+            recordsCount: parsedRows.length,
+            rows: parsedRows,
+            stats: {
+                avgBpm: parsedRows.map(r => r.bpm).reduce((a, b) => a + b, 0) / (parsedRows.length || 1),
+                sdrr: 45, // default fallback
+                rmssd: 32, // default fallback
+            },
+            rawSignal: rawSignal,
+            file: file,
+            age,
+            sex,
+          });
+      } else {
+          calculateAndSendStats(name, parsedRows, file);
+      }
     } catch {
       setErrorMsg("An error occurred while parsing the CSV file.");
+    }
+  };
+
+  const processFiles = (files: FileList | File[]) => {
+    const fileArray = Array.from(files);
+    const csvFile = fileArray.find(f => f.name.endsWith(".csv"));
+    const heaFile = fileArray.find(f => f.name.endsWith(".hea"));
+    const datFile = fileArray.find(f => f.name.endsWith(".dat"));
+
+    if (csvFile) {
+      const reader = new FileReader();
+      reader.onload = (evt) => {
+        if (evt.target?.result) {
+          parseCSVText(evt.target.result as string, csvFile.name, csvFile);
+        }
+      };
+      reader.readAsText(csvFile);
+    } else if (heaFile && datFile) {
+      const baseName = heaFile.name.replace(".hea", "");
+      onDatasetLoaded({
+        fileName: baseName,
+        recordsCount: 0,
+        rows: [],
+        stats: { avgBpm: 0, sdrr: 0, rmssd: 0 },
+        files: [heaFile, datFile],
+        age,
+        sex,
+      });
+    } else if (heaFile || datFile) {
+      setErrorMsg("Both .hea and .dat files are required for WFDB format.");
+    } else {
+      setErrorMsg("Please upload a .csv file or a WFDB record (.hea + .dat).");
     }
   };
 
@@ -281,33 +401,15 @@ export const DatasetUploader: React.FC<DatasetUploaderProps> = ({
     setDragActive(false);
     setErrorMsg(null);
 
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      const file = e.dataTransfer.files[0];
-      if (file.name.endsWith(".csv")) {
-        const reader = new FileReader();
-        reader.onload = (evt) => {
-          if (evt.target?.result) {
-            parseCSVText(evt.target.result as string, file.name);
-          }
-        };
-        reader.readAsText(file);
-      } else {
-        setErrorMsg("Only CSV files are supported.");
-      }
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      processFiles(e.dataTransfer.files);
     }
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setErrorMsg(null);
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      const reader = new FileReader();
-      reader.onload = (evt) => {
-        if (evt.target?.result) {
-          parseCSVText(evt.target.result as string, file.name);
-        }
-      };
-      reader.readAsText(file);
+    if (e.target.files && e.target.files.length > 0) {
+      processFiles(e.target.files);
     }
   };
 
@@ -362,6 +464,32 @@ export const DatasetUploader: React.FC<DatasetUploaderProps> = ({
         </div>
       ) : (
         <>
+          {/* Patient Demographics */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", marginBottom: "4px" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+              <label style={{ fontSize: "0.7rem", color: "var(--text-secondary)" }}>Patient Age (Required)</label>
+              <input
+                type="number"
+                value={age}
+                onChange={(e) => setAge(Number(e.target.value))}
+                min="0"
+                max="120"
+                style={{ padding: "8px", borderRadius: "6px", background: "rgba(0,0,0,0.15)", border: "1px solid var(--border-glass)", color: "#FFFFFF", fontSize: "0.8rem" }}
+              />
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+              <label style={{ fontSize: "0.7rem", color: "var(--text-secondary)" }}>Patient Sex (Required)</label>
+              <select
+                value={sex}
+                onChange={(e) => setSex(Number(e.target.value))}
+                style={{ padding: "8px", borderRadius: "6px", background: "rgba(0,0,0,0.15)", border: "1px solid var(--border-glass)", color: "#FFFFFF", fontSize: "0.8rem" }}
+              >
+                <option value={0}>Male</option>
+                <option value={1}>Female</option>
+              </select>
+            </div>
+          </div>
+
           {/* Drag & Drop Zone */}
           <div
             onDragEnter={handleDrag}
@@ -382,16 +510,17 @@ export const DatasetUploader: React.FC<DatasetUploaderProps> = ({
             <input
               ref={fileInputRef}
               type="file"
-              accept=".csv"
+              accept=".csv,.hea,.dat"
+              multiple
               style={{ display: "none" }}
               onChange={handleFileChange}
             />
             <Upload size={32} style={{ color: dragActive ? "var(--color-primary)" : "var(--text-muted)", marginBottom: "12px" }} />
             <p style={{ fontSize: "0.9rem", color: "#FFFFFF", fontWeight: "500" }}>
-              Drag & Drop PhysioNet CSV here
+              Drag & Drop ECG here
             </p>
             <p style={{ fontSize: "0.75rem", color: "var(--text-secondary)", marginTop: "4px" }}>
-              or click to browse local files
+              Supported formats: CSV or WFDB (.hea + .dat)
             </p>
             {errorMsg && (
               <p style={{ fontSize: "0.8rem", color: "var(--color-risk)", marginTop: "12px", fontWeight: "600" }}>

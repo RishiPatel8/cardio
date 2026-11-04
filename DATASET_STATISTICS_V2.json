@@ -1,0 +1,17 @@
+{
+    "dataset_name": "PTB-XL (Network Restricted Subset)",
+    "total_records_processed": 3447,
+    "sampling_frequency": 100,
+    "lead_configuration": "Lead I",
+    "class_distribution": {
+        "Class 0 (Normal)": 2034,
+        "Class 1 (AFIB)": 463,
+        "Class 2 (Other)": 950
+    },
+    "excluded_records": 6808,
+    "input_shape": [
+        3447,
+        1000,
+        1
+    ]
+}
