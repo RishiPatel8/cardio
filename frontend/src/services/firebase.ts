@@ -60,7 +60,7 @@ isAnalyticsSupported().then((supported) => {
 export let appCheck: any = null;
 if (typeof window !== "undefined") {
   // TODO: Re-enable Firebase App Check in production mode by setting VITE_APP_CHECK_ENABLED=true in .env
-  const appCheckEnabled = import.meta.env.VITE_APP_CHECK_ENABLED !== "false";
+  const appCheckEnabled = import.meta.env.VITE_APP_CHECK_ENABLED === "true";
   if (appCheckEnabled) {
     try {
       const isDev = import.meta.env.DEV || window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";

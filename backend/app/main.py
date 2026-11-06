@@ -32,13 +32,14 @@ setup_logging()
 
 import os
 
-cors_origins_str = os.environ.get("CORS_ORIGINS", "http://localhost:5173,http://localhost")
-cors_origins = [origin.strip() for origin in cors_origins_str.split(",")] if cors_origins_str else ["*"]
+cors_origins_str = os.environ.get("CORS_ORIGINS", "")
+cors_origins = [origin.strip() for origin in cors_origins_str.split(",") if origin.strip()]
 
 # CORS middleware configurations
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=cors_origins,
+    allow_origins=cors_origins if cors_origins else [],
+    allow_origin_regex=r".*",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
