@@ -8,7 +8,7 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
-from fastapi import APIRouter, Depends, Query, status, HTTPException
+from fastapi import APIRouter, Depends, Query, status, HTTPException, Request
 from fastapi.responses import FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -742,19 +742,31 @@ def generate_pdf_document(
     buffer.seek(0)
     return buffer.read()
 
+def get_report_base_url(request: Request) -> str:
+    proto = request.headers.get("x-forwarded-proto", request.url.scheme)
+    host = request.headers.get("x-forwarded-host", request.headers.get("host", "localhost:8000"))
+    return f"{proto}://{host}"
+
 @router.get("", response_model=List[ReportResponse], summary="Get Reports List")
 async def get_reports_list(
+    request: Request,
     limit: int = Query(50, description="Max reports to fetch"),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
     """Fetch previously generated diagnostic and cardiovascular PDF reports list."""
     report_repo = ReportRepository(db)
-    return await report_repo.get_by_user(current_user.id, limit)
+    reports = await report_repo.get_by_user(current_user.id, limit)
+    base_url = get_report_base_url(request)
+    for r in reports:
+        if r.report_url and "localhost:8000" in r.report_url:
+            r.report_url = r.report_url.replace("http://localhost:8000", base_url)
+    return reports
 
 @router.post("/generate", response_model=ReportResponse, status_code=status.HTTP_201_CREATED, summary="Generate Report")
 async def generate_pdf_report(
     request_data: ReportGenerateRequest,
+    request: Request,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
@@ -774,13 +786,13 @@ async def generate_pdf_report(
     with open(file_path, "wb") as f:
         f.write(pdf_bytes)
             
-    # Direct access URL to download the report from backend
-    local_report_url = f"http://localhost:8000/api/v1/reports/download/{filename}"
+    base_url = get_report_base_url(request)
+    report_url = f"{base_url}/api/v1/reports/download/{filename}"
     
     report = Report(
         user_id=current_user.id,
         title=request_data.title,
-        report_url=local_report_url
+        report_url=report_url
     )
     report = await report_repo.create(report)
     return report

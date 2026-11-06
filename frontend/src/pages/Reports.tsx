@@ -9,6 +9,20 @@ interface ReportItem {
   report_url: string;
 }
 
+const resolveReportUrl = (url: string): string => {
+  if (!url) return "";
+  const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:8000/api/v1";
+  const backendBase = apiUrl.replace(/\/api\/v1\/?$/, "");
+  
+  if (url.startsWith("/api/v1")) {
+    return `${backendBase}${url}`;
+  }
+  if (url.includes("localhost:8000")) {
+    return url.replace(/https?:\/\/localhost:8000/, backendBase);
+  }
+  return url;
+};
+
 const Reports: React.FC = () => {
   const [reports, setReports] = useState<ReportItem[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -38,7 +52,8 @@ const Reports: React.FC = () => {
     fetchReports();
   }, []);
 
-  const handleDownload = async (reportUrl: string, title: string, id: string) => {
+  const handleDownload = async (rawUrl: string, title: string, id: string) => {
+    const reportUrl = resolveReportUrl(rawUrl);
     setDownloadingId(id);
     try {
       const token = await getUserToken();

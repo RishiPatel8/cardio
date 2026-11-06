@@ -183,7 +183,22 @@ const Dashboard: React.FC = () => {
     return () => clearInterval(interval);
   }, [isPlaying]);
 
-const downloadReportFile = async (reportUrl: string, defaultFilename: string = "CardioGuard_Diagnostic_Report.pdf") => {
+const resolveReportUrl = (url: string): string => {
+  if (!url) return "";
+  const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:8000/api/v1";
+  const backendBase = apiUrl.replace(/\/api\/v1\/?$/, "");
+  
+  if (url.startsWith("/api/v1")) {
+    return `${backendBase}${url}`;
+  }
+  if (url.includes("localhost:8000")) {
+    return url.replace(/https?:\/\/localhost:8000/, backendBase);
+  }
+  return url;
+};
+
+const downloadReportFile = async (rawUrl: string, defaultFilename: string = "CardioGuard_Diagnostic_Report.pdf") => {
+    const reportUrl = resolveReportUrl(rawUrl);
     try {
       const token = await getUserToken();
       const downloadHeaders: Record<string, string> = {};
