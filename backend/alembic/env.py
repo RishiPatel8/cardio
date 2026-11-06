@@ -53,6 +53,7 @@ async def run_migrations_online() -> None:
                 prefix="sqlalchemy.",
                 poolclass=pool.NullPool,
                 future=True,
+                connect_args={"statement_cache_size": 0}
             )
         )
 

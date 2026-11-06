@@ -8,8 +8,12 @@ engine_kwargs = {
 }
 
 if settings.SQLALCHEMY_DATABASE_URI and settings.SQLALCHEMY_DATABASE_URI.startswith("postgresql"):
-    engine_kwargs["pool_size"] = 20
-    engine_kwargs["max_overflow"] = 10
+    engine_kwargs["pool_size"] = 10
+    engine_kwargs["max_overflow"] = 5
+    # Required for Neon serverless PgBouncer connection pooling and prepared statements
+    engine_kwargs["connect_args"] = {
+        "statement_cache_size": 0
+    }
 
 engine = create_async_engine(
     settings.SQLALCHEMY_DATABASE_URI,

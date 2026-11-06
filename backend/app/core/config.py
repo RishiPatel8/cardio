@@ -30,6 +30,7 @@ class Settings(BaseSettings):
     @classmethod
     def assemble_db_connection(cls, v: Optional[str], values: ValidationInfo) -> Any:
         import os
+        import urllib.parse
         raw_url = v or os.environ.get("DATABASE_URL") or os.environ.get("SQLALCHEMY_DATABASE_URI")
         if isinstance(raw_url, str) and raw_url.strip():
             url = raw_url.strip()
@@ -38,10 +39,34 @@ class Settings(BaseSettings):
                 url = url.replace("postgres://", "postgresql+asyncpg://", 1)
             elif url.startswith("postgresql://") and not url.startswith("postgresql+asyncpg://"):
                 url = url.replace("postgresql://", "postgresql+asyncpg://", 1)
-            # asyncpg does not accept 'sslmode' query argument; replace with 'ssl'
-            if "sslmode=" in url:
-                url = url.replace("sslmode=", "ssl=")
-            return url
+            
+            # Clean and sanitize URL query parameters for asyncpg compatibility
+            parsed = urllib.parse.urlparse(url)
+            query_params = urllib.parse.parse_qs(parsed.query)
+            asyncpg_params = {}
+            
+            # Handle SSL requirement (Neon / Supabase / AWS RDS / Render Postgres)
+            if "sslmode" in query_params:
+                mode = query_params["sslmode"][0]
+                if mode in ["require", "verify-ca", "verify-full"]:
+                    asyncpg_params["ssl"] = "require"
+                elif mode == "disable":
+                    pass
+                else:
+                    asyncpg_params["ssl"] = mode
+            elif "ssl" in query_params:
+                asyncpg_params["ssl"] = query_params["ssl"][0]
+            elif "neon.tech" in parsed.netloc or "aws" in parsed.netloc:
+                asyncpg_params["ssl"] = "require"
+            
+            # Whitelist parameters accepted by asyncpg (drop libpq arguments like channel_binding)
+            valid_keys = {"ssl", "timeout", "command_timeout", "target_session_attrs"}
+            for k, val in query_params.items():
+                if k in valid_keys and k not in asyncpg_params:
+                    asyncpg_params[k] = val[0]
+            
+            new_query = urllib.parse.urlencode(asyncpg_params)
+            return urllib.parse.urlunparse(parsed._replace(query=new_query))
             
         server = values.data.get("POSTGRES_SERVER", "localhost")
         user = values.data.get("POSTGRES_USER", "postgres")
