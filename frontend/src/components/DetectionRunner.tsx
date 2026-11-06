@@ -140,14 +140,19 @@ export const DetectionRunner: React.FC<DetectionRunnerProps> = ({
                   cursor: "pointer"
                 }}
               >
+                <option value="v9_ensemble" style={{ color: "#000", fontWeight: "bold" }}>
+                  ★ Final Ensemble Model (Seven-Model Combined Prediction) [Primary]
+                </option>
                 <option value="default" style={{ color: "#000" }}>Current Model (v6-canonical)</option>
                 <option value="compare" style={{ color: "#000", fontWeight: "bold" }}>⚡ Compare All Enabled Models</option>
-                <optgroup label="Individual Verified Models" style={{ color: "#000" }}>
-                  {availableModels.map(m => (
-                    <option key={m.id} value={m.id} style={{ color: "#000" }}>
-                      {m.architecture} ({m.version})
-                    </option>
-                  ))}
+                <optgroup label="Individual Verified Models (7 Architectures)" style={{ color: "#000" }}>
+                  {availableModels
+                    .filter((m: any) => m.id !== "v9_ensemble")
+                    .map((m: any) => (
+                      <option key={m.id} value={m.id} style={{ color: "#000" }}>
+                        {m.architecture} ({m.version})
+                      </option>
+                    ))}
                 </optgroup>
               </select>
             </div>

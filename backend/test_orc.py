@@ -2,7 +2,7 @@ import os
 import sys
 import numpy as np
 
-sys.path.insert(0, os.path.abspath(r'd:\cardiogaurd\backend'))
+sys.path.insert(0, os.path.abspath(r'g:/cardio\backend'))
 
 from app.services.orchestrator import ModelOrchestrator
 
@@ -16,3 +16,4 @@ try:
         print(f"{r['model_id']}: {r['status']}")
 except Exception as e:
     print('Error:', e)
+

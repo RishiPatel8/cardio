@@ -6,6 +6,8 @@ def extract_features(signal: np.ndarray, fs: float = 100.0):
     Extracts HR and RMSSD from an ECG signal exactly as implemented during V8 training.
     """
     sig = signal.flatten()
+    if len(sig) == 0:
+        return 75.0, 0.0
     
     # 1. Heart Rate (HR)
     # Simple peak detection for R-peaks

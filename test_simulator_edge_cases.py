@@ -2,7 +2,7 @@ import sys
 import os
 import asyncio
 
-sys.path.append("d:/cardiogaurd/backend")
+sys.path.append("g:/cardio/backend")
 os.environ["PREDICTION_MODE"] = "demo"
 
 from app.workers.sync_worker import get_sync_worker
@@ -42,3 +42,4 @@ async def test_edge_cases():
 
 if __name__ == "__main__":
     asyncio.run(test_edge_cases())
+

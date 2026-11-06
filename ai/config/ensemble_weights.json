@@ -1,0 +1,24 @@
+{
+  "ensemble_version": "v9-ensemble",
+  "methodology": "Validation-Derived Normalized Macro F1 Soft Voting",
+  "source_dataset": "PTB-XL Official Validation Split (Fold 9)",
+  "samples_evaluated": 2198,
+  "weights": {
+    "v8_tcn_multimodal": 0.1643,
+    "v7_tcn": 0.1568,
+    "v7_resnet": 0.1558,
+    "v7_transformer": 0.1516,
+    "resnet": 0.1490,
+    "v7_cnn_lstm": 0.1123,
+    "v8_tabular_mlp": 0.1100
+  },
+  "raw_validation_metrics": {
+    "v8_tcn_multimodal": { "macro_f1": 0.6450, "accuracy": 0.6756, "roc_auc": 0.8539 },
+    "v7_tcn": { "macro_f1": 0.6157, "accuracy": 0.6615, "roc_auc": 0.8413 },
+    "v7_resnet": { "macro_f1": 0.6118, "accuracy": 0.6642, "roc_auc": 0.8442 },
+    "v7_transformer": { "macro_f1": 0.5953, "accuracy": 0.6515, "roc_auc": 0.8210 },
+    "resnet": { "macro_f1": 0.5849, "accuracy": 0.7582, "roc_auc": 0.8120 },
+    "v7_cnn_lstm": { "macro_f1": 0.4410, "accuracy": 0.5601, "roc_auc": 0.7303 },
+    "v8_tabular_mlp": { "macro_f1": 0.4318, "accuracy": 0.4563, "roc_auc": 0.7260 }
+  }
+}

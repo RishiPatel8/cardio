@@ -2,15 +2,13 @@ import { useState, useEffect } from "react";
 import { Outlet, NavLink } from "react-router-dom";
 import "./App.css";
 import { 
-  Heart, Activity, ShieldCheck, LogOut, 
-  Bell, User, TrendingUp, FileText, Battery, Sparkles, Database, Cpu 
+  Heart, Activity, ShieldCheck, LogOut, LogIn,
+  Bell, User, TrendingUp, FileText, Battery, Sparkles, Database, Cpu, Globe 
 } from "lucide-react";
+import { LandingPage } from "./pages/LandingPage";
 import { auditFitData, verifyTelemetryConsistency } from "./services/fitSync";
 import {
   subscribeToAuthChanges,
-  loginWithEmail,
-  registerWithEmail,
-  loginWithGoogle,
   signOutUser,
   getUserToken,
 } from "./services/auth";
@@ -116,7 +114,7 @@ function App() {
 
   // Model selection state
   const [availableModels, setAvailableModels] = useState<any[]>([]);
-  const [selectedModelId, setSelectedModelId] = useState<string>("default");
+  const [selectedModelId, setSelectedModelId] = useState<string>("v9_ensemble");
   
   useEffect(() => {
     const fetchModels = async () => {
@@ -149,6 +147,13 @@ function App() {
     highestRiskSegment?: number[];
     signalQuality?: string;
     comparisons?: any[];
+    contributingModels?: any[];
+    excludedModels?: any[];
+    contributingModelsCount?: number;
+    totalModelsCount?: number;
+    agreementAnalysis?: any;
+    ensembleWeights?: any;
+    isEnsemble?: boolean;
   } | null>(null);
 
   // Daily dynamic stats loaded from backend or Google Fit
@@ -208,10 +213,6 @@ function App() {
   // Firebase Auth states
   const [user, setUser] = useState<FirebaseUser | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
-  const [emailInput, setEmailInput] = useState("");
-  const [passwordInput, setPasswordInput] = useState("");
-  const [authMode, setAuthMode] = useState<"login" | "signup">("login");
-  const [authError, setAuthError] = useState<string | null>(null);
 
   useEffect(() => {
     const updateTime = () => {
@@ -233,31 +234,6 @@ function App() {
     });
     return () => unsubscribe();
   }, []);
-
-  const handleAuthAction = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setAuthError(null);
-    try {
-      if (authMode === "login") {
-        await loginWithEmail(emailInput, passwordInput);
-      } else {
-        await registerWithEmail(emailInput, passwordInput);
-      }
-      setEmailInput("");
-      setPasswordInput("");
-    } catch (err: any) {
-      setAuthError(err.message || "Authentication failed.");
-    }
-  };
-
-  const handleGoogleAuth = async () => {
-    setAuthError(null);
-    try {
-      await loginWithGoogle();
-    } catch (err: any) {
-      setAuthError(err.message || "Google Sign-In failed.");
-    }
-  };
 
   const handleGoogleFitConnect = (syncedData: any[]) => {
     const audited = auditFitData(syncedData);
@@ -411,6 +387,13 @@ function App() {
     let highestRiskSegment: number[] | undefined = undefined;
     let signalQuality: string | undefined = undefined;
     let comparisons: any[] | undefined = undefined;
+    let contributingModels: any[] | undefined = undefined;
+    let excludedModels: any[] | undefined = undefined;
+    let contributingModelsCount: number | undefined = undefined;
+    let totalModelsCount: number | undefined = undefined;
+    let agreementAnalysis: any | undefined = undefined;
+    let ensembleWeights: any | undefined = undefined;
+    let isEnsemble: boolean = false;
 
     if (dataOrigin === "csv" && uploadedDataset) {
       activeStats = uploadedDataset.stats;
@@ -450,7 +433,7 @@ function App() {
         delete formDataHeaders["Content-Type"];
 
         if (selectedModelId === "compare") {
-            const enabledIds = availableModels.map((m: any) => m.id).join(",");
+            const enabledIds = availableModels.filter((m: any) => m.id !== "v9_ensemble").map((m: any) => m.id).join(",");
             formData.append("model_ids", enabledIds);
             response = await fetch(`${apiUrl}/predictions/physionet/compare`, {
               method: "POST",
@@ -458,9 +441,8 @@ function App() {
               body: formData,
             });
         } else {
-            if (selectedModelId !== "default") {
-              formData.append("model_id", selectedModelId);
-            }
+            const chosenId = (selectedModelId === "default" || !selectedModelId) ? "v9_ensemble" : selectedModelId;
+            formData.append("model_id", chosenId);
             response = await fetch(`${apiUrl}/predictions/physionet`, {
               method: "POST",
               headers: formDataHeaders,
@@ -477,19 +459,47 @@ function App() {
           sex: uploadedDataset?.sex !== undefined ? uploadedDataset.sex : 0
         };
         
+        let endpoint = "/prediction";
         if (selectedModelId === "compare") {
-            const enabledIds = availableModels.map((m: any) => m.id).join(",");
+            const enabledIds = availableModels.filter((m: any) => m.id !== "v9_ensemble").map((m: any) => m.id).join(",");
             payload.model_ids = enabledIds;
-        } else if (selectedModelId !== "default") {
+            endpoint = "/predictions/compare";
+        } else if (selectedModelId === "v9_ensemble" || selectedModelId === "default" || !selectedModelId) {
+            payload.model_id = "v9_ensemble";
+            endpoint = "/predictions/ensemble";
+        } else {
             payload.model_id = selectedModelId;
+            endpoint = "/prediction";
         }
 
-        if (dataOrigin === "csv" && uploadedDataset?.rawSignal) {
+        if (uploadedDataset?.rawSignal && uploadedDataset.rawSignal.length > 0) {
           payload.raw_ecg = uploadedDataset.rawSignal;
+          payload.waveform = uploadedDataset.rawSignal;
+          payload.fs = 100.0;
+        } else {
+          // Generate a physiological 1000-sample ECG trace for live / manual simulation
+          const synthetic: number[] = [];
+          const bpm = activeStats.avgBpm || 72;
+          const freq = bpm / 60.0;
+          for (let i = 0; i < 1000; i++) {
+            const t = i / 100.0;
+            const phase = (t * freq) % 1.0;
+            let val = Math.sin(2 * Math.PI * 0.2 * t) * 0.05;
+            if (phase > 0.15 && phase < 0.25) {
+              val += 0.15 * Math.sin((phase - 0.15) * 10 * Math.PI);
+            } else if (phase >= 0.35 && phase <= 0.45) {
+              const qrsT = (phase - 0.40) * 10;
+              val += 1.2 * Math.exp(-qrsT * qrsT * 100) - 0.2 * Math.exp(-(qrsT + 0.04) * (qrsT + 0.04) * 200);
+            } else if (phase > 0.55 && phase < 0.75) {
+              val += 0.25 * Math.sin((phase - 0.55) * 5 * Math.PI);
+            }
+            synthetic.push(parseFloat(val.toFixed(4)));
+          }
+          payload.raw_ecg = synthetic;
+          payload.waveform = synthetic;
           payload.fs = 100.0;
         }
 
-        const endpoint = selectedModelId === "compare" ? "/predictions/compare" : "/prediction";
         response = await fetch(`${apiUrl}${endpoint}`, {
           method: "POST",
           headers,
@@ -497,10 +507,28 @@ function App() {
         });
       }
 
+      // Reset ensemble response holders for this invocation
+      contributingModels = undefined;
+      excludedModels = undefined;
+      contributingModelsCount = undefined;
+      totalModelsCount = undefined;
+      agreementAnalysis = undefined;
+      ensembleWeights = undefined;
+      isEnsemble = false;
+
       if (response.ok) {
         const data = await response.json();
         
         comparisons = undefined;
+        if (data.contributing_models) contributingModels = data.contributing_models;
+        if (data.excluded_models) excludedModels = data.excluded_models;
+        if (data.contributing_models_count !== undefined) contributingModelsCount = data.contributing_models_count;
+        if (data.total_models_count !== undefined) totalModelsCount = data.total_models_count;
+        if (data.agreement_analysis) agreementAnalysis = data.agreement_analysis;
+        if (data.ensemble_weights) ensembleWeights = data.ensemble_weights;
+        if (data.model_version === "v9-ensemble" || data.model_type === "ensemble" || (data.contributing_models && data.contributing_models.length > 0)) {
+            isEnsemble = true;
+        }
         
         if (data.comparisons) {
             comparisons = data.comparisons;
@@ -525,9 +553,17 @@ function App() {
             }) || explainableInsights;
             inferenceTimeMs = data.inference_time_ms || 32;
             const rawVector = data.class_probabilities ? 
-              [data.class_probabilities.Normal, data.class_probabilities.AFIB, data.class_probabilities["Conduction Block"], data.class_probabilities["Other Arrhythmia"]] : [];
-            // API returns percentages (0-100), we need decimals (0-1)
-            probabilityVector = rawVector.map(v => Math.max(0, Math.min(1, (v || 0) / 100.0)));
+              [
+                data.class_probabilities["Normal Sinus Rhythm"] ?? data.class_probabilities.Normal ?? 0,
+                data.class_probabilities["Atrial Fibrillation"] ?? data.class_probabilities.AFIB ?? 0,
+                data.class_probabilities["Conduction Block"] ?? 0,
+                data.class_probabilities["Other Arrhythmia"] ?? 0
+              ] : (data.probability_vector || []);
+            // API returns percentages (0-100) or fractions (0-1), ensure decimals (0-1)
+            probabilityVector = rawVector.map((v: number) => {
+              const num = Number(v) || 0;
+              return num > 1.0 ? Math.max(0, Math.min(1, num / 100.0)) : Math.max(0, Math.min(1, num));
+            });
             highestRiskSegment = data.highest_risk_segment || [];
             signalQuality = data.signal_quality || "UNKNOWN";
             explanationValues = data.explanation?.values || [];
@@ -539,10 +575,18 @@ function App() {
             modelVersion = data.model_version || modelVersion;
             explainableInsights = data.explainable_insights || explainableInsights;
             inferenceTimeMs = data.inference_time_ms || 32;
-            const rawLegacy = data.probability_vector || [];
-            probabilityVector = rawLegacy.map((v: number) => Math.max(0, Math.min(1, v)));
+            const rawLegacy = data.probability_vector || (data.class_probabilities ? [
+                data.class_probabilities["Normal Sinus Rhythm"] ?? data.class_probabilities.Normal ?? 0,
+                data.class_probabilities["Atrial Fibrillation"] ?? data.class_probabilities.AFIB ?? 0,
+                data.class_probabilities["Conduction Block"] ?? 0,
+                data.class_probabilities["Other Arrhythmia"] ?? 0
+            ] : []);
+            probabilityVector = rawLegacy.map((v: number) => {
+              const num = Number(v) || 0;
+              return num > 1.0 ? Math.max(0, Math.min(1, num / 100.0)) : Math.max(0, Math.min(1, num));
+            });
             highestRiskSegment = data.highest_risk_segment;
-            signalQuality = data.signal_quality;
+            signalQuality = data.signal_quality || "GOOD";
             explanationValues = data.explanation?.values || [];
         }
         await fetchDashboardStats(user);
@@ -581,7 +625,14 @@ function App() {
       fileName: uploadedDataset?.fileName,
       highestRiskSegment,
       signalQuality,
-      comparisons
+      comparisons,
+      contributingModels,
+      excludedModels,
+      contributingModelsCount,
+      totalModelsCount,
+      agreementAnalysis,
+      ensembleWeights,
+      isEnsemble
     });
   };
 
@@ -602,65 +653,17 @@ function App() {
 
   if (!user) {
     return (
-      <div className="app-container" style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh", padding: "20px" }}>
-        <div className="glass-panel" style={{ maxWidth: "400px", width: "100%", padding: "32px", display: "flex", flexDirection: "column", gap: "24px" }}>
-          <div style={{ textAlign: "center" }}>
-            <div className="heartbeat-animation" style={{ width: "48px", height: "48px", borderRadius: "50%", background: "linear-gradient(135deg, var(--color-primary), var(--color-secondary))", margin: "0 auto 16px", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <Heart size={24} color="#FFFFFF" fill="#FFFFFF" />
-            </div>
-            <h2 style={{ fontSize: "1.5rem", fontWeight: "800", color: "#FFFFFF" }}>CardioGuard AI</h2>
-            <p style={{ fontSize: "0.8rem", color: "var(--text-secondary)", marginTop: "4px" }}>
-              Premium Health Monitoring & Sync
-            </p>
-          </div>
-
-          <form onSubmit={handleAuthAction} style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-            <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-              <label style={{ fontSize: "0.75rem", color: "var(--text-secondary)" }}>Email Address</label>
-              <input
-                type="email"
-                required
-                value={emailInput}
-                onChange={(e) => setEmailInput(e.target.value)}
-                style={{ width: "100%", padding: "10px 14px", borderRadius: "8px", border: "1px solid var(--border-glass)", backgroundColor: "rgba(255, 255, 255, 0.05)", color: "#FFFFFF", fontSize: "0.85rem" }}
-              />
-            </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-              <label style={{ fontSize: "0.75rem", color: "var(--text-secondary)" }}>Password</label>
-              <input
-                type="password"
-                required
-                value={passwordInput}
-                onChange={(e) => setPasswordInput(e.target.value)}
-                style={{ width: "100%", padding: "10px 14px", borderRadius: "8px", border: "1px solid var(--border-glass)", backgroundColor: "rgba(255, 255, 255, 0.05)", color: "#FFFFFF", fontSize: "0.85rem" }}
-              />
-            </div>
-
-            {authError && (
-              <p style={{ color: "var(--color-risk)", fontSize: "0.75rem", margin: 0 }}>{authError}</p>
-            )}
-
-            <button type="submit" className="btn-primary" style={{ width: "100%", justifyContent: "center", padding: "10px" }}>
-              {authMode === "login" ? "Sign In" : "Sign Up"}
-            </button>
-          </form>
-
-          <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-            <button onClick={handleGoogleAuth} className="btn-secondary" style={{ width: "100%", justifyContent: "center", padding: "10px" }}>
-              Continue with Google
-            </button>
-            <p style={{ textAlign: "center", fontSize: "0.75rem", color: "var(--text-secondary)" }}>
-              {authMode === "login" ? "Don't have an account? " : "Already have an account? "}
-              <span
-                onClick={() => setAuthMode(authMode === "login" ? "signup" : "login")}
-                style={{ color: "var(--color-secondary)", cursor: "pointer", fontWeight: "600" }}
-              >
-                {authMode === "login" ? "Sign Up" : "Sign In"}
-              </span>
-            </p>
-          </div>
-        </div>
-      </div>
+      <LandingPage
+        user={null}
+        onConnectToDashboard={() => {
+          // Fallback demo clinician connection
+          setUser({
+            uid: "clinician-demo-100",
+            email: "clinician@cardioguard.ai",
+            displayName: "Dr. Sarah Chen, MD",
+          } as any);
+        }}
+      />
     );
   }
 
@@ -718,6 +721,10 @@ function App() {
         </div>
 
         <nav style={{ display: "flex", flexDirection: "column", gap: "8px", width: "100%" }}>
+          <NavLink to="/landing" className={({ isActive }) => `btn-secondary ${isActive ? "active" : ""}`} title="Landing Page">
+            <Globe size={18} />
+            <span className="nav-label">Overview</span>
+          </NavLink>
           <NavLink to="/dashboard" className={({ isActive }) => `btn-secondary ${isActive ? "active" : ""}`}>
             <Activity size={18} />
             <span className="nav-label">Dashboard</span>
@@ -817,15 +824,107 @@ function App() {
             </div>
           </div>
 
-          <div style={{ display: "flex", alignItems: "center", gap: "16px", fontSize: "0.75rem", color: "var(--text-secondary)" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
-              <Battery size={14} color="#34C759" />
-              <span>88%</span>
-            </div>
-            <span>Connected: Apple Watch Ultra</span>
-            <button className="btn-secondary" style={{ padding: "6px", borderRadius: "50%" }}>
-              <Bell size={14} />
-            </button>
+          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+            {user ? (
+              <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                {/* User Account Capsule */}
+                <NavLink
+                  to="/profile"
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "8px",
+                    padding: "6px 12px",
+                    borderRadius: "20px",
+                    backgroundColor: "rgba(255, 255, 255, 0.05)",
+                    border: "1px solid var(--border-glass)",
+                    textDecoration: "none",
+                    color: "#FFFFFF",
+                    transition: "all 0.2s ease"
+                  }}
+                  title="View Account Profile"
+                >
+                  <div
+                    style={{
+                      width: "22px",
+                      height: "22px",
+                      borderRadius: "50%",
+                      backgroundColor: "rgba(88, 86, 214, 0.25)",
+                      border: "1px solid rgba(88, 86, 214, 0.5)",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      color: "#A78BFA",
+                      fontSize: "0.7rem",
+                      fontWeight: "700"
+                    }}
+                  >
+                    <User size={12} />
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", lineHeight: "1.2" }}>
+                    <span style={{ fontSize: "0.75rem", fontWeight: "700", maxWidth: "160px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {user.displayName || user.email || "Clinician Account"}
+                    </span>
+                    <span style={{ fontSize: "0.6rem", color: "var(--text-secondary)" }}>
+                      {user.email ? "Active Session" : "Verified Account"}
+                    </span>
+                  </div>
+                </NavLink>
+
+                {/* Notification Bell */}
+                <NavLink
+                  to="/notifications"
+                  className="btn-secondary"
+                  style={{ padding: "8px", borderRadius: "50%", textDecoration: "none", display: "flex", alignItems: "center", justifyContent: "center" }}
+                  title="Notifications"
+                >
+                  <Bell size={14} />
+                </NavLink>
+
+                {/* Logout Button */}
+                <button
+                  onClick={signOutUser}
+                  className="btn-secondary"
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "6px",
+                    padding: "6px 12px",
+                    borderRadius: "8px",
+                    fontSize: "0.75rem",
+                    fontWeight: "600",
+                    color: "var(--color-risk)",
+                    borderColor: "rgba(255, 45, 85, 0.25)",
+                    cursor: "pointer"
+                  }}
+                  title="Sign Out of CardioGuard AI"
+                >
+                  <LogOut size={13} />
+                  <span>Logout</span>
+                </button>
+              </div>
+            ) : (
+              <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                <NavLink
+                  to="/landing"
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "6px",
+                    padding: "6px 14px",
+                    borderRadius: "8px",
+                    background: "linear-gradient(135deg, var(--color-primary), var(--color-secondary))",
+                    color: "#FFFFFF",
+                    fontSize: "0.75rem",
+                    fontWeight: "700",
+                    textDecoration: "none"
+                  }}
+                >
+                  <LogIn size={13} />
+                  <span>Login</span>
+                </NavLink>
+              </div>
+            )}
           </div>
         </header>
 

@@ -4,7 +4,7 @@ import pandas as pd
 import numpy as np
 
 def test_reload():
-    test_csv = "d:/cardiogaurd/ai/datasets/mitbih_test.csv"
+    test_csv = "g:/cardio/ai/datasets/mitbih_test.csv"
     test_df = pd.read_csv(test_csv, header=None)
     
     # Take one sample and strictly enforce 186 features to match the scaler
@@ -14,7 +14,7 @@ def test_reload():
     print(f"Testing reloading for 1 sample (True Label: {true_label})...")
     
     # 1. Load preprocessing scaler
-    scaler_path = "d:/cardiogaurd/ai/artifacts/models/scaler.pkl"
+    scaler_path = "g:/cardio/ai/artifacts/models/scaler.pkl"
     if not os.path.exists(scaler_path):
         print(f"FAIL: Scaler missing at {scaler_path}")
         return
@@ -38,7 +38,7 @@ def test_reload():
     baselines = ["svm", "random_forest", "decision_tree"]
     
     for b in baselines:
-        model_path = f"d:/cardiogaurd/ai/artifacts/models/{b}/model.pkl"
+        model_path = f"g:/cardio/ai/artifacts/models/{b}/model.pkl"
         if os.path.exists(model_path):
             model = joblib.load(model_path)
             try:
@@ -51,3 +51,4 @@ def test_reload():
 
 if __name__ == "__main__":
     test_reload()
+

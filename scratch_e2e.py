@@ -2,7 +2,7 @@ import os
 import sys
 
 # Append backend to path for imports
-sys.path.append("d:/cardiogaurd/backend")
+sys.path.append("g:/cardio/backend")
 os.environ["PREDICTION_MODE"] = "demo"
 
 from app.workers.sync_worker import get_sync_worker
@@ -34,3 +34,4 @@ def run_e2e_trace():
 
 if __name__ == "__main__":
     run_e2e_trace()
+

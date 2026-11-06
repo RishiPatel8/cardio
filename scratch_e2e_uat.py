@@ -1,6 +1,6 @@
 import sys
 import os
-sys.path.insert(0, r"d:\cardiogaurd\backend")
+sys.path.insert(0, r"g:/cardio\backend")
 os.environ["PREDICTION_MODE"] = "real"
 
 import asyncio
@@ -27,7 +27,7 @@ def run_uat():
     app.dependency_overrides[get_current_user] = lambda: {"uid": "test-user-123"}
     
     # Load temp_Normal.csv
-    csv_path = r"d:\cardiogaurd\backend\temp_Normal.csv"
+    csv_path = r"g:/cardio\backend\temp_Normal.csv"
     if not os.path.exists(csv_path):
         # Create a dummy one if it doesn't exist
         print("Creating dummy ECG CSV for test...")
@@ -86,3 +86,4 @@ def run_uat():
 
 if __name__ == "__main__":
     run_uat()
+

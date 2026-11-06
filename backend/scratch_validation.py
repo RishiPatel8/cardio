@@ -6,7 +6,7 @@ from sqlalchemy import text
 import sys
 import os
 
-sys.path.append(r'd:\cardiogaurd\backend')
+sys.path.append(r'g:/cardio\backend')
 
 # Add missing schemas for SQLAlchemy
 from app.models.prediction import Prediction
@@ -46,7 +46,7 @@ async def run_validation():
         
         # Real ECG Upload
         # We will use mitbih_test.csv from ai/datasets
-        dataset_path = r'd:\cardiogaurd\ai\datasets\mitbih_test.csv'
+        dataset_path = r'g:/cardio\ai\datasets\mitbih_test.csv'
         print(f"Uploading Real ECG: {dataset_path}")
         
         with open(dataset_path, "rb") as f:
@@ -99,3 +99,4 @@ async def run_validation():
 
 if __name__ == "__main__":
     asyncio.run(run_validation())
+

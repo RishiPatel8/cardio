@@ -28,44 +28,54 @@ class InferenceService:
         self._load_registry()
         self._initialize()
 
+    def _resolve_path(self, p: str) -> str:
+        if not p:
+            return ""
+        if os.path.exists(p):
+            return p
+        norm = p.replace("\\", "/")
+        project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
+        for marker in ["ai/", "backend/"]:
+            if marker in norm:
+                cand = os.path.join(project_root, norm[norm.find(marker):])
+                if os.path.exists(cand):
+                    return cand
+        cand = os.path.join(project_root, p.lstrip("/\\"))
+        if os.path.exists(cand):
+            return cand
+        return p
+
     def _load_registry(self):
-        self.registry_path = "d:/cardiogaurd/ai/config/registry.json"
-        self.real_model_path = "d:/cardiogaurd/ai/artifacts/models/random_forest.pkl"
-        self.scaler_path = "d:/cardiogaurd/ai/artifacts/models/preprocessing_pipeline.pkl"
-        self.shap_bg_path = "d:/cardiogaurd/ai/artifacts/models/shap_background.npy"
+        project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
+        self.registry_path = self._resolve_path(os.path.join(project_root, "ai", "config", "registry.json"))
+        self.real_model_path = self._resolve_path(os.path.join(project_root, "ai", "artifacts", "models", "v6_full", "best_model.h5"))
+        self.scaler_path = self._resolve_path(os.path.join(project_root, "ai", "artifacts", "models", "v6_full", "scaler_v6.pkl"))
+        self.shap_bg_path = self._resolve_path(os.path.join(project_root, "ai", "artifacts", "models", "v6_full", "shap_background.npy"))
 
         if os.path.exists(self.registry_path):
             try:
                 with open(self.registry_path, "r") as f:
                     registry = json.load(f)
-                    self.active_model = registry.get("active_model", "random_forest")
-                    self.scaler_path = registry.get("preprocessing_artifact", self.scaler_path)
-                    if "scaler_path" in registry: # also support direct scaler_path
-                        self.scaler_path = registry["scaler_path"]
-                    if "shap_background_path" in registry:
-                        self.shap_bg_path = registry["shap_background_path"]
+                    self.active_model = registry.get("active_model", "resnet")
                     self.temperature = float(registry.get("temperature", 1.0))
                     self.afib_threshold = float(registry.get("afib_threshold", 0.5))
                     
-                    if "artifact_path" in registry:
-                        self.real_model_path = registry["artifact_path"]
-                        self.model_version = registry.get("version", "v5-full-run")
-                    
-                    self.model_type = "resnet"
-                    
                     models = registry.get("models", {})
                     if self.active_model in models:
-                        self.real_model_path = models[self.active_model].get("artifact_path", self.real_model_path)
-                        self.scaler_path = models[self.active_model].get("preprocessing_artifact", self.scaler_path)
-                        self.model_version = models[self.active_model].get("version", self.model_version)
-                        self.model_type = models[self.active_model].get("model_type", "resnet")
-                        self.shap_bg_path = models[self.active_model].get("shap_background_path", self.shap_bg_path)
+                        m = models[self.active_model]
+                        self.real_model_path = self._resolve_path(m.get("artifact_path", self.real_model_path))
+                        self.scaler_path = self._resolve_path(m.get("preprocessing_artifact", self.scaler_path))
+                        self.model_version = m.get("version", "v6-canonical")
+                        self.model_type = m.get("architecture", "resnet")
+                        self.shap_bg_path = self._resolve_path(m.get("shap_background_path", self.shap_bg_path))
+                    elif "artifact_path" in registry:
+                        self.real_model_path = self._resolve_path(registry["artifact_path"])
+                        self.scaler_path = self._resolve_path(registry.get("preprocessing_artifact", self.scaler_path))
+                        self.model_version = registry.get("version", "v5-full-run")
 
-                    # Ensure 1000-sample models use the proper 1000-sample background
-                    canonical_bg = "d:/cardiogaurd/ai/artifacts/models/v6_full/shap_background.npy"
+                    canonical_bg = self._resolve_path(os.path.join(project_root, "ai", "artifacts", "models", "v6_full", "shap_background.npy"))
                     if (not self.shap_bg_path or not os.path.exists(self.shap_bg_path) or "187" in str(self.shap_bg_path)) and os.path.exists(canonical_bg):
                         self.shap_bg_path = canonical_bg
-                        
             except Exception as e:
                 logger.error(f"Failed to load registry: {e}")
 
@@ -354,3 +364,4 @@ inference_service_instance = InferenceService()
 
 def get_inference_service() -> InferenceService:
     return inference_service_instance
+

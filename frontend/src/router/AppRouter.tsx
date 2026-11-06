@@ -1,5 +1,5 @@
 import React, { Suspense, lazy } from "react";
-import { Routes, Route, Navigate } from "react-router-dom";
+import { Routes, Route } from "react-router-dom";
 import App from "../App";
 import ErrorBoundary from "../components/ErrorBoundary";
 
@@ -21,6 +21,7 @@ const ModelRegistry = lazy(() => import("../pages/ModelRegistry"));
 const DatasetManager = lazy(() => import("../pages/DatasetManager"));
 const SystemMonitoring = lazy(() => import("../pages/SystemMonitoring"));
 const Research = lazy(() => import("../pages/Research"));
+const LandingPageWrapper = lazy(() => import("../pages/LandingPageWrapper"));
 const NotFound = lazy(() => import("../pages/NotFound"));
 
 const LoadingFallback: React.FC = () => (
@@ -34,9 +35,12 @@ export const AppRouter: React.FC = () => {
     <ErrorBoundary>
       <Suspense fallback={<LoadingFallback />}>
         <Routes>
+          {/* Standalone Fullscreen Landing Page Routes */}
+          <Route path="/" element={<LandingPageWrapper />} />
+          <Route path="/landing" element={<LandingPageWrapper />} />
+
           {/* Main Layout Wrap Route */}
           <Route element={<App />}>
-            <Route path="/" element={<Navigate to="/dashboard" replace />} />
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/trends" element={<Trends />} />
             <Route path="/reports" element={<Reports />} />

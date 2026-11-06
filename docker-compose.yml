@@ -7,7 +7,7 @@ services:
     environment:
       POSTGRES_DB: cardioguard
       POSTGRES_USER: cardioguard_admin
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-cardioguard_dev_secret_db_pass}
+      POSTGRES_PASSWORD: cardioguard_dev_secret_db_pass
     volumes:
       - pgdata:/var/lib/postgresql/data
     ports:
@@ -35,15 +35,21 @@ services:
 
   backend:
     build:
-      context: ./backend
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: backend/Dockerfile
     container_name: cardioguard_backend
     environment:
-      - DATABASE_URL=postgresql+asyncpg://cardioguard_admin:${POSTGRES_PASSWORD:-cardioguard_dev_secret_db_pass}@db:5432/cardioguard
-      - REDIS_URL=redis://redis:6379/0
-      - APP_CHECK_ENABLED=true
-      - JWT_SECRET=${JWT_SECRET:-cardioguard_dev_secret_jwt_key_9901}
-      - FIREBASE_CREDENTIALS_PATH=/app/firebase_credentials.json
+      - POSTGRES_SERVER=db
+      - POSTGRES_USER=cardioguard_admin
+      - POSTGRES_PASSWORD=cardioguard_dev_secret_db_pass
+      - POSTGRES_DB=cardioguard
+      - POSTGRES_PORT=5432
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - PREDICTION_MODE=real
+      - APP_CHECK_ENABLED=false
+      - PYTHONPATH=/app/backend:/app
+      - CORS_ORIGINS=http://localhost:5173,http://localhost:3000,http://localhost
     ports:
       - "8000:8000"
     depends_on:
@@ -52,8 +58,7 @@ services:
       redis:
         condition: service_healthy
     volumes:
-      - ./backend:/app
-      - uploads_volume:/app/uploads
+      - .:/app
     restart: always
 
   frontend:
@@ -62,11 +67,10 @@ services:
       dockerfile: Dockerfile
     container_name: cardioguard_frontend
     ports:
-      - "80:80"
-      - "443:443"
+      - "3000:80"
     environment:
-      - VITE_API_URL=https://api.cardioguard.ai/api/v1
-      - VITE_APP_CHECK_ENABLED=true
+      - VITE_API_URL=http://localhost:8000/api/v1
+      - VITE_APP_CHECK_ENABLED=false
     depends_on:
       - backend
     restart: always
@@ -75,6 +79,4 @@ volumes:
   pgdata:
     driver: local
   redisdata:
-    driver: local
-  uploads_volume:
     driver: local

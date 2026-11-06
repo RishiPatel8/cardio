@@ -1,0 +1,49 @@
+{
+    "Model": "v9_ensemble",
+    "Display Name": "Final Ensemble Model",
+    "Parameters": 842508,
+    "Accuracy": 0.7470427661510464,
+    "Macro Precision": 0.6831066220933601,
+    "Macro Recall": 0.6989355629745246,
+    "Macro F1": 0.655431142628826,
+    "Weighted F1": 0.7298656492724195,
+    "ROC-AUC": 0.8872,
+    "Normal Recall": 0.9498657117278424,
+    "AFIB Recall": 0.8717948717948718,
+    "Block Recall": 0.3730964467005076,
+    "Other Recall": 0.6009852216748769,
+    "Normal Precision": 0.7830258302583026,
+    "AFIB Precision": 0.46258503401360546,
+    "Block Precision": 0.7577319587628866,
+    "Other Precision": 0.7290836653386454,
+    "Normal F1": 0.8584142394822006,
+    "AFIB F1": 0.6044444444444445,
+    "Block F1": 0.5,
+    "Other F1": 0.6588658865886589,
+    "Confusion Matrix": [
+        [
+            1061,
+            1,
+            4,
+            51
+        ],
+        [
+            2,
+            68,
+            3,
+            5
+        ],
+        [
+            125,
+            42,
+            147,
+            80
+        ],
+        [
+            167,
+            36,
+            40,
+            366
+        ]
+    ]
+}

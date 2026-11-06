@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 from pydantic import BaseModel, ConfigDict
-from typing import Optional, List
+from typing import Optional, List, Any
 
 class ReportGenerateRequest(BaseModel):
     model_config = ConfigDict(protected_namespaces=())
@@ -15,6 +15,14 @@ class ReportGenerateRequest(BaseModel):
     probability_vector: Optional[List[float]] = []
     dataset_metadata: Optional[dict] = {}
     explainable_insights: Optional[List[str]] = []
+    highest_risk_segment: Optional[List[float]] = None
+    explanation_values: Optional[List[dict]] = None
+    patient_age: Optional[float] = None
+    patient_sex: Optional[int] = None
+    signal_quality: Optional[str] = "GOOD"
+    avg_bpm: Optional[float] = None
+    rmssd_ms: Optional[float] = None
+    sdrr_ms: Optional[float] = None
 
 class ReportResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True, protected_namespaces=())

@@ -10,12 +10,12 @@ os.makedirs('model_plots', exist_ok=True)
 
 # 1. Individual Training Plots
 models = {
-    'v7_resnet': r'D:\cardiogaurd\ai\artifacts\models\v7\resnet_improved\history.json',
-    'v7_tcn': r'D:\cardiogaurd\ai\artifacts\models\v7\tcn\history.json',
+    'v7_resnet': r'g:/cardio\ai\artifacts\models\v7\resnet_improved\history.json',
+    'v7_tcn': r'g:/cardio\ai\artifacts\models\v7\tcn\history.json',
     'v7_transformer': None,  # No history
-    'v7_cnn_lstm': r'D:\cardiogaurd\ai\artifacts\models\v7\cnn_lstm\history.json',
-    'v8_tcn_multimodal': r'D:\cardiogaurd\ai\artifacts\models\v8\tcn_multimodal\history.json',
-    'v8_tabular_mlp': r'D:\cardiogaurd\ai\artifacts\models\v8\tabular_mlp\history.json'
+    'v7_cnn_lstm': r'g:/cardio\ai\artifacts\models\v7\cnn_lstm\history.json',
+    'v8_tcn_multimodal': r'g:/cardio\ai\artifacts\models\v8\tcn_multimodal\history.json',
+    'v8_tabular_mlp': r'g:/cardio\ai\artifacts\models\v8\tabular_mlp\history.json'
 }
 
 all_histories = {}
@@ -96,7 +96,7 @@ plt.savefig('model_plots/all_models_validation_accuracy.png', bbox_inches='tight
 plt.close()
 
 # 3. Test Metric Comparisons
-df = pd.read_csv(r'D:\cardiogaurd\docs\research\final_model_comparison.csv')
+df = pd.read_csv(r'g:/cardio\docs\research\final_model_comparison.csv')
 
 # Filter for the relevant models
 target_models = ['Resnet Improved', 'Tcn', 'Transformer', 'Cnn Lstm', 'Tcn Multimodal', 'Tabular Mlp']
@@ -193,3 +193,4 @@ plt.savefig('model_plots/training_validation_test_accuracy.png', bbox_inches='ti
 plt.close()
 
 print("Plots generated successfully!")
+

@@ -1,4 +1,4 @@
-with open(r'd:\cardiogaurd\backend\app\api\v1\predictions\physionet.py', 'a') as f:
+with open(r'g:/cardio\backend\app\api\v1\predictions\physionet.py', 'a') as f:
     f.write('''
 
 @router.post("/compare")
@@ -59,3 +59,4 @@ async def compare_models(
     finally:
         shutil.rmtree(temp_dir, ignore_errors=True)
 ''')
+

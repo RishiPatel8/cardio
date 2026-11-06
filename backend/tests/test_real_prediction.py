@@ -7,7 +7,7 @@ def test_prediction():
     
     print("Loading one test sample from mitbih_test.csv...")
     try:
-        df = pd.read_csv("d:/cardiogaurd/ai/datasets/mitbih_test.csv", header=None)
+        df = pd.read_csv("g:/cardio/ai/datasets/mitbih_test.csv", header=None)
         # Sample one record
         sample = df.iloc[0, :-1].values.tolist()
     except Exception as e:
@@ -34,3 +34,4 @@ def test_prediction():
 
 if __name__ == "__main__":
     test_prediction()
+

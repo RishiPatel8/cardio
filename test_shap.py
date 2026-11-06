@@ -2,7 +2,7 @@ import os
 import sys
 import numpy as np
 
-sys.path.insert(0, r"d:\cardiogaurd")
+sys.path.insert(0, r"g:/cardio")
 
 from backend.app.services.shap_service import get_shap_service
 
@@ -10,8 +10,8 @@ def test():
     # Set prediction mode to real
     os.environ["PREDICTION_MODE"] = "real"
     
-    model_path = r"d:\cardiogaurd\ai\artifacts\models\v6_full\best_model.h5"
-    bg_path = r"d:\cardiogaurd\ai\artifacts\models\v6_full\shap_background.npy"
+    model_path = r"g:/cardio\ai\artifacts\models\v6_full\best_model.h5"
+    bg_path = r"g:/cardio\ai\artifacts\models\v6_full\shap_background.npy"
     
     print("Loading ShapService...")
     shap_service = get_shap_service(model_path, bg_path)
@@ -32,3 +32,4 @@ def test():
 
 if __name__ == "__main__":
     test()
+

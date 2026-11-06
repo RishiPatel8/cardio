@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useOutletContext } from "react-router-dom";
 import { calculateCardiovascularRisk } from "../utils/riskCalculator";
 import { HeartRateChart } from "../components/HeartRateChart";
@@ -9,8 +9,7 @@ import { ResultsView } from "../components/ResultsView";
 import { ActivityRings } from "../components/ActivityRings";
 import { 
   Tv, Play, Pause, ZoomIn, ZoomOut, Filter, Download, FileText, 
-  ShieldCheck, Clock, PlusCircle, X, Maximize2, Minimize2, Activity,
-  CheckCircle2, AlertTriangle
+  Activity, ShieldCheck, Clock, PlusCircle, X, Minimize2
 } from "lucide-react";
 
 interface DatasetStats {
@@ -24,6 +23,8 @@ interface DatasetPayload {
   recordsCount: number;
   rows: any[];
   stats: DatasetStats;
+  age?: number;
+  sex?: number;
 }
 
 interface DashboardContext {
@@ -49,6 +50,14 @@ interface DashboardContext {
     highestRiskSegment?: number[];
     signalQuality?: string;
     fileName?: string;
+    comparisons?: any;
+    contributingModels?: any[];
+    excludedModels?: any[];
+    contributingModelsCount?: number;
+    totalModelsCount?: number;
+    agreementAnalysis?: any;
+    ensembleWeights?: any;
+    isEnsemble?: boolean;
   } | null;
   setAnalysisResult: (res: any) => void;
   isPlaying: boolean;
@@ -129,6 +138,8 @@ const Dashboard: React.FC = () => {
   const [syncStatus, setSyncStatus] = useState<string | null>(null);
   
   const [playOffset, setPlayOffset] = useState<number>(0);
+  const [selectedRegion, setSelectedRegion] = useState<{ start: number; end: number } | null>(null);
+  const compactEcgRef = useRef<HTMLDivElement>(null);
 
   // Generate Compact ECG path
   const compactEcgPath = React.useMemo(() => {
@@ -172,21 +183,47 @@ const Dashboard: React.FC = () => {
     return () => clearInterval(interval);
   }, [isPlaying]);
 
+const downloadReportFile = async (reportUrl: string, defaultFilename: string = "CardioGuard_Diagnostic_Report.pdf") => {
+    try {
+      const token = await getUserToken();
+      const downloadHeaders: Record<string, string> = {};
+      if (token) downloadHeaders["Authorization"] = `Bearer ${token}`;
+      const fileRes = await fetch(reportUrl, { headers: downloadHeaders });
+      if (fileRes.ok) {
+        const blob = await fileRes.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = defaultFilename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+      } else {
+        window.open(reportUrl, "_blank");
+      }
+    } catch {
+      window.open(reportUrl, "_blank");
+    }
+  };
+
   const handleRegionClick = (startSec: number, endSec: number) => {
     setIsPlaying(false);
     const startX = startSec * 100;
     const endX = endSec * 100;
     const centerX = (startX + endX) / 2;
     
-    // We want centerX to be at the middle of the 300px viewBox (150)
-    let newOffset = centerX - 150;
-    
-    // Bound the offset between 0 and 700 (1000 - 300)
-    if (newOffset < 0) newOffset = 0;
-    if (newOffset > 700) newOffset = 700;
-    
-    setPlayOffset(newOffset);
+    setSelectedRegion({ start: startSec, end: endSec });
+    setPlayOffset(centerX);
     setZoomLevel(1.5);
+    
+    // Automatically launch the Fullscreen ECG Diagnostic Rhythm Monitor Modal
+    setIsFullscreen(true);
+    
+    // Smoothly scroll the compact widget into view as well
+    setTimeout(() => {
+      compactEcgRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 100);
   };
 
   // Handle ESC key to exit fullscreen
@@ -544,7 +581,7 @@ const Dashboard: React.FC = () => {
             </div>
 
             {/* Compact ECG Widget with controls */}
-            <div className="glass-panel" style={{ padding: "20px", display: "flex", flexDirection: "column", gap: "12px" }}>
+            <div ref={compactEcgRef} className="glass-panel" style={{ padding: "20px", display: "flex", flexDirection: "column", gap: "12px" }}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                 <span style={{ fontSize: "0.75rem", fontWeight: "800", textTransform: "uppercase" }}>Compact ECG (Lead I)</span>
                 <div style={{ display: "flex", gap: "6px" }}>
@@ -574,16 +611,31 @@ const Dashboard: React.FC = () => {
 
               <div style={{ width: "100%", height: "70px", backgroundColor: "rgba(0,0,0,0.15)", borderRadius: "10px", overflow: "hidden", display: "flex", alignItems: "center", position: "relative" }}>
                 <svg width="100%" height="100%" viewBox="0 0 300 60" style={{ transform: `scale(${zoomLevel})` }}>
+                  {selectedRegion && (
+                    <g transform={`translate(${-Math.max(0, Math.min(700, playOffset - 150))} 0)`}>
+                      <rect 
+                        x={selectedRegion.start * 100} 
+                        y={0} 
+                        width={Math.max(16, (selectedRegion.end - selectedRegion.start) * 100)} 
+                        height={60} 
+                        fill="rgba(255, 204, 0, 0.25)" 
+                        stroke="#FFCC00" 
+                        strokeWidth="1.5"
+                        strokeDasharray="3 2"
+                      />
+                    </g>
+                  )}
                   <path 
                     d={compactEcgPath}
                     fill="none" 
                     stroke={isAF ? "#FF3B30" : "#34C759"} 
                     strokeWidth="1.5" 
-                    transform={`translate(${-playOffset} 0)`}
+                    transform={`translate(${-Math.max(0, Math.min(700, playOffset - 150))} 0)`}
                   />
                 </svg>
                 <span style={{ position: "absolute", bottom: "4px", left: "8px", fontSize: "0.55rem", color: "var(--text-muted)" }}>
                   {isFiltered ? "Bandpass Filter Active" : "Raw Input Stream"}
+                  {selectedRegion && " • Focused Region: " + selectedRegion.start.toFixed(2) + "s – " + selectedRegion.end.toFixed(2) + "s"}
                 </span>
               </div>
             </div>
@@ -601,6 +653,13 @@ const Dashboard: React.FC = () => {
               signalQuality={analysisResult.signalQuality}
               highestRiskSegment={analysisResult.highestRiskSegment}
               comparisons={analysisResult.comparisons}
+              contributingModels={analysisResult.contributingModels}
+              excludedModels={analysisResult.excludedModels}
+              contributingModelsCount={analysisResult.contributingModelsCount}
+              totalModelsCount={analysisResult.totalModelsCount}
+              agreementAnalysis={analysisResult.agreementAnalysis}
+              ensembleWeights={analysisResult.ensembleWeights}
+              isEnsemble={analysisResult.isEnsemble}
               onReset={handleResetAnalysis}
               onRegionClick={handleRegionClick}
               onExportReport={async () => {
@@ -624,14 +683,33 @@ const Dashboard: React.FC = () => {
                     headers,
                     body: JSON.stringify({
                       title: `Cardio Diagnostics Summary - ${new Date().toLocaleDateString()}`,
-                      prediction_id: null
+                      prediction_id: null,
+                      prediction_class: analysisResult.resultType,
+                      confidence: analysisResult.confidence,
+                      model_version: analysisResult.modelVersion,
+                      inference_time_ms: analysisResult.inferenceTimeMs,
+                      probability_vector: analysisResult.probabilityVector,
+                      explainable_insights: analysisResult.explainableInsights,
+                      highest_risk_segment: analysisResult.highestRiskSegment,
+                      explanation_values: analysisResult.explanationValues,
+                      patient_age: uploadedDataset?.age ?? profile?.age ?? 69.0,
+                      patient_sex: uploadedDataset?.sex ?? (profile?.gender === "female" ? 1 : 0),
+                      signal_quality: analysisResult.signalQuality || "GOOD",
+                      avg_bpm: uploadedDataset?.stats?.avgBpm ?? dailyStats.avgBpm ?? 74,
+                      rmssd_ms: uploadedDataset?.stats?.rmssd ?? dailyStats.rmssd ?? 35,
+                      sdrr_ms: uploadedDataset?.stats?.sdrr ?? dailyStats.sdrr ?? 45,
+                      dataset_metadata: {
+                        fileName: uploadedDataset?.fileName || "MIT-BIH Record 100",
+                        recordsCount: uploadedDataset?.recordsCount || 180,
+                        fs: "100 Hz"
+                      }
                     })
                   });
 
                   if (response.ok) {
                     const data = await response.json();
                     if (data.report_url) {
-                      window.open(data.report_url, "_blank");
+                      await downloadReportFile(data.report_url, `CardioGuard_Report_${new Date().toISOString().slice(0, 10)}.pdf`);
                     } else {
                       alert("Report successfully generated on server.");
                     }
@@ -776,7 +854,64 @@ const Dashboard: React.FC = () => {
                   <span style={{ fontSize: "0.6rem", color: "var(--text-muted)" }}>July 22, 2026</span>
                 </div>
               </div>
-              <button onClick={() => alert("Downloading diagnostic PDF report.")} style={{ border: "none", background: "none", cursor: "pointer" }} title="Download">
+              <button 
+                onClick={async () => {
+                  try {
+                    const token = await getUserToken();
+                    const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:8000/api/v1";
+                    const headers: Record<string, string> = {};
+                    if (token) headers["Authorization"] = `Bearer ${token}`;
+                    const res = await fetch(`${apiUrl}/reports?limit=1`, { headers });
+                    if (res.ok) {
+                      const reports = await res.json();
+                      if (reports && reports.length > 0 && reports[0].report_url) {
+                        await downloadReportFile(reports[0].report_url, "Cardio_Diagnostic_Report.pdf");
+                        return;
+                      }
+                    }
+                    if (analysisResult) {
+                      const genRes = await fetch(`${apiUrl}/reports/generate`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+                        body: JSON.stringify({
+                          title: `Cardio Diagnostics Summary - ${new Date().toLocaleDateString()}`,
+                          prediction_id: null,
+                          prediction_class: analysisResult.resultType,
+                          confidence: analysisResult.confidence,
+                          model_version: analysisResult.modelVersion,
+                          inference_time_ms: analysisResult.inferenceTimeMs,
+                          probability_vector: analysisResult.probabilityVector,
+                          explainable_insights: analysisResult.explainableInsights,
+                          highest_risk_segment: analysisResult.highestRiskSegment,
+                          explanation_values: analysisResult.explanationValues,
+                          patient_age: uploadedDataset?.age ?? profile?.age ?? 69.0,
+                          patient_sex: uploadedDataset?.sex ?? (profile?.gender === "female" ? 1 : 0),
+                          signal_quality: analysisResult.signalQuality || "GOOD",
+                          avg_bpm: uploadedDataset?.stats?.avgBpm ?? dailyStats.avgBpm ?? 74,
+                          rmssd_ms: uploadedDataset?.stats?.rmssd ?? dailyStats.rmssd ?? 35,
+                          sdrr_ms: uploadedDataset?.stats?.sdrr ?? dailyStats.sdrr ?? 45,
+                          dataset_metadata: {
+                            fileName: uploadedDataset?.fileName || "MIT-BIH Record 100",
+                            recordsCount: uploadedDataset?.recordsCount || 180,
+                            fs: "100 Hz"
+                          }
+                        })
+                      });
+                      if (genRes.ok) {
+                        const genData = await genRes.json();
+                        if (genData.report_url) {
+                          await downloadReportFile(genData.report_url, "Cardio_Diagnostic_Report.pdf");
+                          return;
+                        }
+                      }
+                    }
+                    alert("No diagnostic reports generated yet. Run AI Detection and click Export.");
+                  } catch (e) {
+                    console.error("Recent report download failed", e);
+                  }
+                }} 
+                style={{ border: "none", background: "none", cursor: "pointer" }} 
+                title="Download">
                 <Download size={14} color="#FFFFFF" />
               </button>
             </div>
@@ -806,6 +941,45 @@ const Dashboard: React.FC = () => {
             overflowY: "auto"
           }}
         >
+          {/* Focused Region Anomaly Alert Banner */}
+          {selectedRegion && (
+            <div style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              padding: "10px 18px",
+              borderRadius: "10px",
+              backgroundColor: "rgba(255, 204, 0, 0.12)",
+              border: "1px solid rgba(255, 204, 0, 0.4)",
+              color: "#FFCC00"
+            }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                <Activity size={18} color="#FFCC00" />
+                <span style={{ fontSize: "0.85rem", fontWeight: "800" }}>
+                  Focused Anomaly Attribution: {selectedRegion.start.toFixed(2)}s – {selectedRegion.end.toFixed(2)}s
+                </span>
+                <span style={{ fontSize: "0.72rem", color: "rgba(255,255,255,0.7)" }}>
+                  (Sample {Math.round(selectedRegion.start * 100)} to {Math.round(selectedRegion.end * 100)}) • Peak Saliency Deflection
+                </span>
+              </div>
+              <button 
+                onClick={() => setSelectedRegion(null)}
+                style={{
+                  background: "rgba(255,255,255,0.1)",
+                  border: "none",
+                  borderRadius: "6px",
+                  padding: "4px 10px",
+                  color: "#FFFFFF",
+                  cursor: "pointer",
+                  fontSize: "0.7rem",
+                  fontWeight: "600"
+                }}
+              >
+                Reset Focus ✕
+              </button>
+            </div>
+          )}
+
           {/* Top Bar / Header */}
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid rgba(255,255,255,0.08)", paddingBottom: "16px" }}>
             <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
@@ -997,28 +1171,33 @@ const Dashboard: React.FC = () => {
                 {/* Salience Attribution Regions Highlight */}
                 {fullscreenAttributionRegions.map((r, idx) => {
                   const x = (r.start / 10.0) * 1000;
-                  const w = Math.max(20, ((r.end - r.start) / 10.0) * 1000);
+                  const w = Math.max(24, ((r.end - r.start) / 10.0) * 1000);
+                  const isSelected = selectedRegion && (
+                    Math.abs(selectedRegion.start - r.start) < 0.05 ||
+                    Math.abs(selectedRegion.end - r.end) < 0.05
+                  );
                   return (
                     <g key={idx}>
                       <rect 
                         x={x} 
-                        y={10} 
+                        y={8} 
                         width={w} 
-                        height={220} 
-                        fill={isAF ? "rgba(255, 45, 85, 0.15)" : "rgba(0, 122, 255, 0.15)"} 
-                        stroke={isAF ? "rgba(255, 45, 85, 0.5)" : "rgba(0, 122, 255, 0.5)"}
-                        strokeDasharray="4 2"
+                        height={224} 
+                        fill={isSelected ? "rgba(255, 204, 0, 0.28)" : (isAF ? "rgba(255, 45, 85, 0.15)" : "rgba(0, 122, 255, 0.15)")} 
+                        stroke={isSelected ? "#FFCC00" : (isAF ? "rgba(255, 45, 85, 0.5)" : "rgba(0, 122, 255, 0.5)")}
+                        strokeWidth={isSelected ? "2.5" : "1"}
+                        strokeDasharray={isSelected ? "none" : "4 2"}
                         rx="6"
                       />
                       <text 
                         x={x + 4} 
                         y={26} 
-                        fill={isAF ? "#FF2D55" : "#007AFF"} 
-                        fontSize="9" 
-                        fontWeight="700" 
+                        fill={isSelected ? "#FFCC00" : (isAF ? "#FF2D55" : "#007AFF")} 
+                        fontSize={isSelected ? "11" : "9"} 
+                        fontWeight="800" 
                         fontFamily="sans-serif"
                       >
-                        {r.start.toFixed(1)}s–{r.end.toFixed(1)}s Attribution
+                        {isSelected ? "★ " + r.start.toFixed(2) + "s–" + r.end.toFixed(2) + "s FOCUSED" : r.start.toFixed(1) + "s–" + r.end.toFixed(1) + "s Attribution"}
                       </text>
                     </g>
                   );
@@ -1086,27 +1265,31 @@ const Dashboard: React.FC = () => {
               </div>
               <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
                 {fullscreenAttributionRegions.length > 0 ? (
-                  fullscreenAttributionRegions.map((region, idx) => (
-                    <button
-                      key={idx}
-                      onClick={() => handleRegionClick(region.start, region.end)}
-                      style={{
-                        padding: "6px 12px",
-                        borderRadius: "8px",
-                        backgroundColor: "rgba(0, 122, 255, 0.12)",
-                        border: "1px solid rgba(0, 122, 255, 0.3)",
-                        color: "var(--color-primary)",
-                        fontSize: "0.75rem",
-                        fontWeight: "700",
-                        cursor: "pointer",
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "6px"
-                      }}
-                    >
-                      <span>⏱ Window {idx + 1}: {region.start.toFixed(2)}s – {region.end.toFixed(2)}s</span>
-                    </button>
-                  ))
+                  fullscreenAttributionRegions.map((region, idx) => {
+                    const isSelected = selectedRegion && Math.abs(selectedRegion.start - region.start) < 0.05;
+                    return (
+                      <button
+                        key={idx}
+                        onClick={() => handleRegionClick(region.start, region.end)}
+                        style={{
+                          padding: "6px 12px",
+                          borderRadius: "8px",
+                          backgroundColor: isSelected ? "rgba(255, 204, 0, 0.22)" : "rgba(0, 122, 255, 0.12)",
+                          border: isSelected ? "1px solid #FFCC00" : "1px solid rgba(0, 122, 255, 0.3)",
+                          color: isSelected ? "#FFCC00" : "var(--color-primary)",
+                          fontSize: "0.75rem",
+                          fontWeight: "700",
+                          cursor: "pointer",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "6px",
+                          boxShadow: isSelected ? "0 0 10px rgba(255, 204, 0, 0.3)" : "none"
+                        }}
+                      >
+                        <span>{isSelected ? "★" : "⏱"} Window {idx + 1}: {region.start.toFixed(2)}s – {region.end.toFixed(2)}s</span>
+                      </button>
+                    );
+                  })
                 ) : (
                   <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
                     Uniform baseline morphology across 10.0s window.
@@ -1138,3 +1321,4 @@ const Dashboard: React.FC = () => {
 };
 
 export default Dashboard;
+

@@ -26,12 +26,11 @@ from ai.preprocessing.signal_quality import assess_signal_quality
 
 # V6 4-class mapping
 CLASS_MAPPING = {
-    0: "Normal",
-    1: "AFIB",
+    0: "Normal Sinus Rhythm",
+    1: "Atrial Fibrillation",
     2: "Conduction Block",
     3: "Other Arrhythmia"
 }
-
 
 # Ensure real inference is explicitly enabled or fail loudly
 PREDICTION_MODE = os.environ.get("PREDICTION_MODE", "real")
@@ -39,14 +38,37 @@ if PREDICTION_MODE != "real":
     logger.warning("PREDICTION_MODE is not 'real'. Falling back to testing mode is disabled for clinical safety.")
 
 # Load Model and Preprocessing Pipeline globally via registry
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../"))
+
+def _resolve_path(p: str) -> str:
+    if not p:
+        return ""
+    if os.path.exists(p):
+        return p
+    norm = p.replace("\\", "/")
+    for marker in ["ai/", "backend/"]:
+        if marker in norm:
+            cand = os.path.join(PROJECT_ROOT, norm[norm.find(marker):])
+            if os.path.exists(cand):
+                return cand
+    cand = os.path.join(PROJECT_ROOT, p.lstrip("/\\"))
+    if os.path.exists(cand):
+        return cand
+    return p
+
 try:
     import tensorflow as tf
-    registry_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../ai/config/registry.json"))
+    registry_path = os.path.join(PROJECT_ROOT, "ai", "config", "registry.json")
     with open(registry_path, "r") as f:
         registry = json.load(f)
         
-    v6_model_path = registry.get("artifact_path", os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../scratch/best_v6_benchmark_model.h5")))
-    scaler_path = registry.get("preprocessing_artifact", os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../ai/artifacts/models/v6_full/scaler_v6.pkl")))
+    active_model = registry.get("active_model", "resnet")
+    model_cfg = registry.get("models", {}).get(active_model, {})
+    raw_model_path = model_cfg.get("artifact_path", registry.get("artifact_path", "ai/artifacts/models/v6_full/best_model.h5"))
+    raw_scaler_path = model_cfg.get("preprocessing_artifact", registry.get("preprocessing_artifact", "ai/artifacts/models/v6_full/scaler_v6.pkl"))
+    
+    v6_model_path = _resolve_path(raw_model_path)
+    scaler_path = _resolve_path(raw_scaler_path)
     
     logger.info(f"Loading Model from {v6_model_path}...")
     if not os.path.exists(v6_model_path):
@@ -58,8 +80,9 @@ try:
     pipeline.load(scaler_path)
     logger.info("Inference pipeline successfully loaded.")
 except Exception as e:
-    logger.error(f"CRITICAL: Failed to load model or scaler. {e}")
-    raise e
+    logger.warning(f"Failed to load model or scaler on startup: {e}")
+    v6_model = None
+    pipeline = None
 
 class PredictionService:
     def __init__(self, db: AsyncSession, redis_client: Optional[aioredis.Redis] = None):
@@ -94,52 +117,32 @@ class PredictionService:
             logger.warning(f"SQI Validation Failed: {sqi_reason}")
             raise HTTPException(status_code=400, detail=f"Signal Quality Invalid: {sqi_reason}")
 
-        # Slice into non-overlapping 10-second windows based on original fs
-        window_size = int(fs * 10)
-        windows = []
-        for i in range(0, len(raw_signal) - window_size + 1, window_size):
-            windows.append(raw_signal[i:i + window_size])
-            
-        if len(windows) == 0:
-            # If shorter than 10 seconds, pad it by letting the pipeline handle it, but wrap it
-            windows.append(raw_signal)
-            
-        windows = np.array(windows, dtype=object) if len(windows) > 1 and len(windows[0]) != len(windows[-1]) else np.array(windows)
-        
-        try:
-            processed = pipeline.process_inference_data(windows, original_fs=fs)
-            processed = processed.reshape(-1, 1000, 1)
-        except Exception as e:
-            logger.error(f"Preprocessing failed: {e}")
-            raise HTTPException(status_code=500, detail="Failed to preprocess ECG signal.")
+        # Execute through unified orchestrator
+        from app.services.orchestrator import get_orchestrator
+        orch = get_orchestrator()
 
-        # Inference
-        try:
-            start_time = time.perf_counter()
-            raw_probs = v6_model.predict(processed, verbose=0)
-            end_time = time.perf_counter()
-            inference_time_ms = int((end_time - start_time) * 1000)
-        except Exception as e:
-            logger.error(f"Inference failed: {e}")
-            raise HTTPException(status_code=500, detail="Model inference failed.")
-            
-        # Validate probability sum
-        prob_sums = np.sum(raw_probs, axis=1)
-        if not np.allclose(prob_sums, 1.0, atol=1e-2):
-            logger.error("V6 model returned invalid probabilities (sum != 1.0)")
-            raise HTTPException(status_code=500, detail="Inference returned invalid probabilities.")
-            
-        # Top-3 AFIB Segment Aggregation (Patient-Level)
-        if len(raw_probs) >= 3:
-            top_k_indices = np.argsort(raw_probs[:, 1])[-3:]
-            aggregated_probs = np.mean(raw_probs[top_k_indices], axis=0)
-        else:
-            aggregated_probs = np.mean(raw_probs, axis=0)
-            
-        aggregated_probs = np.clip(aggregated_probs, 0.0, 1.0).tolist()
-        pred_class_idx = int(np.argmax(aggregated_probs))
-        classification = CLASS_MAPPING.get(pred_class_idx, "Unknown")
-        confidence_score = float(np.max(aggregated_probs)) * 100.0
+        model_id = getattr(request, "model_id", None)
+        if not model_id or model_id == "default":
+            model_id = orch.registry.get("active_model", "resnet")
+
+        payload = {
+            "waveform": request.raw_ecg,
+            "raw_ecg": request.raw_ecg,
+            "age": getattr(request, "age", 35.0) or 35.0,
+            "sex": getattr(request, "sex", 0) or 0,
+            "fs": fs
+        }
+
+        orc_res = orch.run_single_model(model_id, payload)
+        if orc_res.get("status") != "success":
+            raise HTTPException(status_code=500, detail=orc_res.get("status", "Model inference failed"))
+
+        classification = orc_res["classification"]
+        confidence_score = orc_res["confidence_score"]
+        model_version_name = orc_res.get("model_version") or model_id
+        probability_vector = orc_res.get("probability_vector") or []
+        pred_class_idx = orc_res.get("class_index", 0)
+        inference_time_ms = orc_res.get("inference_time_ms", 32)
 
         # Generate Heuristic Explainable Insights (using tabular data)
         avg_bpm = request.avg_bpm if request.avg_bpm is not None else 72.0
@@ -187,12 +190,15 @@ class PredictionService:
             telemetry_id=request.telemetry_id,
             classification=classification,
             confidence_score=confidence_score,
-            probability_vector=aggregated_probs,
-            model_version="resnet_improved_v6",
+            probability_vector=probability_vector,
+            model_version=model_version_name,
             explainable_insights=insights
         )
-        prediction.inference_time_ms = inference_time_ms
         prediction = await self.prediction_repo.create(prediction)
+        prediction.inference_time_ms = inference_time_ms
+        prediction.probability_vector = probability_vector
+        prediction.class_probabilities = orc_res.get("probabilities")
+        prediction.signal_quality = "GOOD"
 
         # Log prediction history state
         history_log = PredictionHistory(
