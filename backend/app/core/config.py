@@ -6,6 +6,15 @@ class Settings(BaseSettings):
     PROJECT_NAME: str = "CardioGuard AI"
     API_V1_STR: str = "/api/v1"
     SECRET_KEY: str = "development-level-secret-jwt-signing-key-for-cardioguard-wearable"
+
+    @field_validator("SECRET_KEY", mode="before")
+    @classmethod
+    def assemble_secret_key(cls, v: Optional[str]) -> str:
+        import os
+        key = v or os.environ.get("JWT_SECRET_KEY") or os.environ.get("SECRET_KEY")
+        if isinstance(key, str) and key.strip():
+            return key.strip()
+        return "development-level-secret-jwt-signing-key-for-cardioguard-wearable"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
 

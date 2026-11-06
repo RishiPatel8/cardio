@@ -32,7 +32,7 @@ setup_logging()
 
 import os
 
-cors_origins_str = os.environ.get("CORS_ORIGINS", "")
+cors_origins_str = os.environ.get("CORS_ORIGINS") or os.environ.get("BACKEND_CORS_ORIGINS", "")
 cors_origins = [origin.strip() for origin in cors_origins_str.split(",") if origin.strip()]
 
 # CORS middleware configurations
