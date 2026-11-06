@@ -20,14 +20,22 @@ class Settings(BaseSettings):
     @field_validator("SQLALCHEMY_DATABASE_URI", mode="before")
     @classmethod
     def assemble_db_connection(cls, v: Optional[str], values: ValidationInfo) -> Any:
-        if isinstance(v, str) and v:
-            return v
+        import os
+        raw_url = v or os.environ.get("DATABASE_URL") or os.environ.get("SQLALCHEMY_DATABASE_URI")
+        if isinstance(raw_url, str) and raw_url.strip():
+            url = raw_url.strip()
+            # Convert standard postgres/postgresql scheme to asyncpg
+            if url.startswith("postgres://"):
+                url = url.replace("postgres://", "postgresql+asyncpg://", 1)
+            elif url.startswith("postgresql://") and not url.startswith("postgresql+asyncpg://"):
+                url = url.replace("postgresql://", "postgresql+asyncpg://", 1)
+            return url
             
-        server = values.data.get("POSTGRES_SERVER")
-        user = values.data.get("POSTGRES_USER")
-        password = values.data.get("POSTGRES_PASSWORD")
-        db = values.data.get("POSTGRES_DB")
-        port = values.data.get("POSTGRES_PORT")
+        server = values.data.get("POSTGRES_SERVER", "localhost")
+        user = values.data.get("POSTGRES_USER", "postgres")
+        password = values.data.get("POSTGRES_PASSWORD", "postgres")
+        db = values.data.get("POSTGRES_DB", "cardioguard")
+        port = values.data.get("POSTGRES_PORT", 5432)
         
         return f"postgresql+asyncpg://{user}:{password}@{server}:{port}/{db}"
 
@@ -39,8 +47,10 @@ class Settings(BaseSettings):
     @field_validator("REDIS_URI", mode="before")
     @classmethod
     def assemble_redis_connection(cls, v: Optional[str], values: ValidationInfo) -> Any:
-        if isinstance(v, str) and v:
-            return v
+        import os
+        r_url = v or os.environ.get("REDIS_URI") or os.environ.get("REDIS_URL")
+        if isinstance(r_url, str) and r_url.strip():
+            return r_url.strip()
         data = values.data
         host = data.get("REDIS_HOST", "localhost")
         port = data.get("REDIS_PORT", 6379)

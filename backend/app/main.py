@@ -53,7 +53,14 @@ app.add_middleware(RateLimitMiddleware, limit=120)
 @app.on_event("startup")
 async def startup_event():
     logger.info("Starting up CardioGuard AI Backend server...")
-    logger.info("Database schema is now managed entirely by Alembic.")
+    try:
+        from app.database.base import Base
+        from app.database.session import engine
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+        logger.info("Database tables initialized/verified on PostgreSQL.")
+    except Exception as e:
+        logger.warning(f"Note on database auto-init: {e}")
 
 @app.on_event("shutdown")
 async def shutdown_event():
