@@ -79,6 +79,17 @@ app.add_exception_handler(RequestValidationError, validation_error_handler)
 app.add_exception_handler(SQLAlchemyError, db_error_handler)
 app.add_exception_handler(JWTError, jwt_error_handler)
 
+@app.get("/", summary="Root Health & Status Check")
+@app.head("/", summary="Root Health & Status Check")
+async def root():
+    return {
+        "status": "online",
+        "service": "CardioGuard AI Backend",
+        "version": "1.0.0",
+        "docs": "/docs",
+        "api_v1": settings.API_V1_STR
+    }
+
 # Include central router
 app.include_router(api_router, prefix=settings.API_V1_STR)
 
